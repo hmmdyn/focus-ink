@@ -308,7 +308,7 @@ fun ReflectScreen(state: AppState, now: Long, sessionId: String, act: Actions, o
         }
     } else {
         val breakEnd = x.endedAt + state.settings.breakMinutes * 60_000L
-        val left = ((breakEnd - now + 59_999) / 60_000).coerceAtLeast(0)
+        val left = ((breakEnd - maxOf(now, x.endedAt) + 59_999) / 60_000).coerceAtLeast(0)
         Screen(scroll = false) {
             T("휴식", Type.label)
             T(if (left > 0) "$left" else "0", Type.hero)

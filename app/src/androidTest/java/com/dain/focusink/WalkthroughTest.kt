@@ -117,11 +117,14 @@ class WalkthroughTest {
         tap("폰은 다른 방", substring = true)
         shot("08_focus_setup")
         tap("시작 · ", substring = true)
+        compose.onNodeWithText("90").assertExists() // 시작 직후 90분, 91 이 아님
+        compose.onNodeWithText("닻 15분 남음").assertExists()
         shot("09_focus_anchor")
         tap("흔들림 기록")
         shot("10_focus_pick")
         tap("SNS·영상")
         tap("충동이 왔다")
+        compose.onNodeWithText("10분만 버텨 보세요").assertExists()
         shot("11_focus_urge")
         tap("지나갔다")
         tap("긴급 중단")
@@ -130,6 +133,7 @@ class WalkthroughTest {
         tap("몰입")
         type(0, "1쪽 끝, 참고문헌 정리 남음")
         tap("저장하고 쉬기")
+        compose.onNodeWithText("5").assertExists()
         shot("13_break")
         tap("다음 블록 준비")
 
@@ -140,6 +144,7 @@ class WalkthroughTest {
 
         // 6. 기록
         tap("기록")
+        compose.onNodeWithText("SNS·영상").assertExists() // 세션 중 기록한 방해가 집계됨
         shot("15_stats")
 
         // 7. 설정: 리뷰 시각을 00:00 으로 바꿔 리뷰를 바로 띄운다

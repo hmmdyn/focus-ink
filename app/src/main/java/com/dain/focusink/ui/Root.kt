@@ -80,7 +80,9 @@ class Actions(private val app: FocusInkApp, private val flash: () -> Unit) {
 fun Root(app: FocusInkApp, onRequestNotifications: () -> Unit) {
     val state by app.repo.state.collectAsState()
     val tick by app.resumeTick.collectAsState()
-    val now = rememberNow(tick)
+    val minuteTick = rememberNow(tick)
+    // 상태가 바뀔 때마다(세션 시작·종료 등) 현재 시각을 새로 읽는다. 분 단위 갱신만으로는 시작 직후가 1분 어긋난다.
+    val now = remember(state, minuteTick) { System.currentTimeMillis() }
     var tab by rememberSaveable { mutableStateOf(Tab.TODAY) }
     var overlay by rememberSaveable { mutableStateOf(Overlay.NONE) }
     var reflectId by rememberSaveable { mutableStateOf<String?>(null) }

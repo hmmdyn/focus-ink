@@ -97,6 +97,13 @@ class FocusTest {
         assertEquals(0, Focus.remainingMinutes(a, t0 + 95 * MIN))
     }
 
+    @Test fun staleClockNeverShowsMoreThanPlanned() {
+        val t0 = at(2026, 10, 8, 9)
+        val a = Focus.start(AppState(), "A", 90, t0).active!!
+        assertEquals(90, Focus.remainingMinutes(a, t0 - 30_000))
+        assertEquals(15, Focus.anchorRemainingMinutes(a, t0 - 30_000))
+    }
+
     @Test fun cannotStartTwice() {
         val s = Focus.start(AppState(), "A", 90, 0)
         assertEquals(s, Focus.start(s, "B", 50, 10))

@@ -47,12 +47,12 @@ object Focus {
 
     /** 남은 분(올림). 0 이하면 0. 화면에 "47분 남음"으로 쓴다. */
     fun remainingMinutes(a: ActiveSession, now: Long): Int {
-        val left = a.startedAt + a.plannedMinutes * MIN - now
+        val left = a.startedAt + a.plannedMinutes * MIN - maxOf(now, a.startedAt)
         return if (left <= 0) 0 else ((left + MIN - 1) / MIN).toInt()
     }
 
     fun anchorRemainingMinutes(a: ActiveSession, now: Long): Int {
-        val left = a.startedAt + a.anchorMinutes * MIN - now
+        val left = a.startedAt + a.anchorMinutes * MIN - maxOf(now, a.startedAt)
         return if (left <= 0) 0 else ((left + MIN - 1) / MIN).toInt()
     }
 
@@ -116,7 +116,7 @@ object Focus {
 
     fun urgeRemainingMinutes(a: ActiveSession, now: Long, urgeMinutes: Int): Int {
         val s = a.urgeStartedAt ?: return 0
-        val left = s + urgeMinutes * MIN - now
+        val left = s + urgeMinutes * MIN - maxOf(now, s)
         return if (left <= 0) 0 else ((left + MIN - 1) / MIN).toInt()
     }
 
