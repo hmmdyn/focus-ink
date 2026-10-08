@@ -74,7 +74,7 @@ fun JournalScreen(state: AppState, now: Long, act: Actions, openMigrate: () -> U
             }
         }
 
-        Section("적기") {
+        Section("새로 쓰기") {
             QuickCapture(act, date, if (date == today) "할 일 / - 메모 / * 중요" else "${Dates.shortMd(date)}에 적기")
             T("• 할 일   × 완료   ~ 취소   – 메모   숫자 = 옮긴 횟수", Type.caption, modifier = Modifier.padding(top = 8.dp))
         }
