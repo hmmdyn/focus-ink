@@ -6,6 +6,16 @@ Boox Palma 2 (Android e-ink)를 **집중 전용 기기**로, 아이폰은 **방�
 - **아이폰**: 단축어 6개 + 자동화 6개 + 스크린 타임. 유혹 앱을 열면 5초 멈춤 후 선택, 결과가 e-ink 에 자동 기록된다.
 - **연동**: [ntfy.sh](https://ntfy.sh) 무료 토픽을 우체통으로 사용(서버·계정 불필요).
 
+## 화면 (Palma 2 해상도, CI 에뮬레이터에서 매 커밋 자동 촬영)
+
+| 오늘 | 집중 · 닻 | 충동 서핑 | 회고 |
+| --- | --- | --- | --- |
+| ![](https://raw.githubusercontent.com/hmmdyn/focus-ink/screenshots/04_today.png) | ![](https://raw.githubusercontent.com/hmmdyn/focus-ink/screenshots/09_focus_anchor.png) | ![](https://raw.githubusercontent.com/hmmdyn/focus-ink/screenshots/11_focus_urge.png) | ![](https://raw.githubusercontent.com/hmmdyn/focus-ink/screenshots/12_reflect.png) |
+
+| 저널 | 옮겨 적기 | 습관 | 기록 |
+| --- | --- | --- | --- |
+| ![](https://raw.githubusercontent.com/hmmdyn/focus-ink/screenshots/05_journal.png) | ![](https://raw.githubusercontent.com/hmmdyn/focus-ink/screenshots/06_migrate.png) | ![](https://raw.githubusercontent.com/hmmdyn/focus-ink/screenshots/14_habits.png) | ![](https://raw.githubusercontent.com/hmmdyn/focus-ink/screenshots/15_stats.png) |
+
 ## 설치 (Palma 2)
 
 1. Palma 2 브라우저로 **[최신 APK](https://github.com/hmmdyn/focus-ink/releases/download/latest/focus-ink.apk)** 다운로드 → 설치(출처를 알 수 없는 앱 허용).
