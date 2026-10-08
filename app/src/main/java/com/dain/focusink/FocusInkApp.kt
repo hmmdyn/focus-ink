@@ -45,13 +45,13 @@ class FocusInkApp : Application() {
                     prev?.let { ended ->
                         Alarms.cancelSessionEnd(this@FocusInkApp)
                         s.sessions.lastOrNull { it.id == ended.id }?.let { done ->
-                            sync.publishAsync("집중 끝 · ${done.label} · ${done.actualMinutes}분 · 방해 ${done.distractions}")
+                            sync.publishAsync("집중을 마쳤어요: ${done.label}, ${done.actualMinutes}분, 딴짓 ${done.distractions}번")
                         }
                     }
                     cur?.let { started ->
                         val end = Focus.endsAt(started)
                         Alarms.scheduleSessionEnd(this@FocusInkApp, end)
-                        sync.publishAsync("집중 시작 · ${started.label} · ${started.plannedMinutes}분 (${Dates.hhmm(end)}까지)")
+                        sync.publishAsync("집중을 시작했어요: ${started.label}, ${Dates.hhmm(end)}까지")
                     }
                     prev = cur
                 }

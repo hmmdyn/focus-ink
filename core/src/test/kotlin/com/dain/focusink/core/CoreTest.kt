@@ -227,3 +227,13 @@ class SyncTest {
         assertEquals("a5", s.settings.lastSyncId)
     }
 }
+
+class HangulTest {
+    @Test fun picksParticleByBatchim() {
+        assertEquals("휴대폰이에요", Hangul.josa("휴대폰", "이에요", "예요"))
+        assertEquals("메시지예요", Hangul.josa("메시지", "이에요", "예요"))
+        assertEquals("SNS·영상이에요", Hangul.josa("SNS·영상", "이에요", "예요"))
+        assertEquals("집중 1시간 30분", "집중 " + Stats.duration(90))
+        assertEquals("2시간", Stats.duration(120))
+    }
+}

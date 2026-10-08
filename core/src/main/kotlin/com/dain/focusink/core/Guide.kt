@@ -14,12 +14,12 @@ object Guide {
         val today = Dates.today(now, zone)
         val time = Dates.timeOf(now, zone)
         val a = state.active
-        if (!s.onboarded) return NextAction(NextKind.SETUP, "시작 설정", "습관 하나와 리뷰 시간을 정합니다")
+        if (!s.onboarded) return NextAction(NextKind.SETUP, "처음 설정을 마쳐 주세요", "")
         if (a != null) {
             val left = Focus.remainingMinutes(a, now)
             return NextAction(
-                NextKind.IN_FOCUS, "집중 중 · ${a.label}",
-                if (left > 0) "${left}분 남음" else "계획 시간 완료 · 마무리하세요",
+                NextKind.IN_FOCUS, "${a.label}에 집중하고 있어요",
+                if (left > 0) "${left}분 남았어요" else "계획한 시간이 끝났어요",
             )
         }
         val reviewed = Stats.hasReview(state, today)
@@ -27,22 +27,22 @@ object Guide {
         val afterSunset = !time.isBefore(Dates.parseTime(s.sunsetTime))
         val afterReview = !time.isBefore(Dates.parseTime(s.reviewTime))
 
-        if (reviewed && afterSunset) return NextAction(NextKind.SUNSET, "디지털 선셋", "폰은 주차장에, 화면은 끄고 잠자리로")
-        if (reviewed) return NextAction(NextKind.DONE_FOR_TODAY, "오늘 정리 끝", "내일 Top 3가 준비됐습니다")
-        if (afterReview) return NextAction(NextKind.REVIEW, "저녁 리뷰", "결과 확인 → 미완료 정리 → 내일 Top 3")
+        if (reviewed && afterSunset) return NextAction(NextKind.SUNSET, "휴대폰을 내려놓을 시간이에요", "화면을 끄고 책이나 일기로 하루를 마무리해요.")
+        if (reviewed) return NextAction(NextKind.DONE_FOR_TODAY, "오늘 정리를 마쳤어요", "내일 할 일도 정해 두었어요.")
+        if (afterReview) return NextAction(NextKind.REVIEW, "하루를 마무리할 시간이에요", "3분이면 충분해요.")
 
         val pending = Journal.pendingMigration(state, today).size
         if (pending > 0 && sessionsToday == 0) {
-            return NextAction(NextKind.MIGRATE, "지난 미완료 ${pending}개 정리", "옮길지 지울지 하나씩 결정")
+            return NextAction(NextKind.MIGRATE, "지난 할 일 ${pending}개가 남아 있어요", "오늘도 할지 하나씩 정해 주세요.")
         }
         if (Journal.topThree(state, today).isEmpty()) {
-            return NextAction(NextKind.PLAN_TOP3, "오늘 Top 3 정하기", "가장 중요한 세 가지만")
+            return NextAction(NextKind.PLAN_TOP3, "오늘 가장 중요한 일을 정해 주세요", "세 가지까지 고를 수 있어요.")
         }
         if (sessionsToday == 0) {
             val first = Journal.topThree(state, today).firstOrNull { it.status == EntryStatus.OPEN }
-            return NextAction(NextKind.FIRST_BLOCK, "첫 딥워크 시작", first?.text ?: "가장 어려운 일부터")
+            return NextAction(NextKind.FIRST_BLOCK, "첫 집중을 시작할 차례예요", first?.text ?: "가장 어려운 일부터 시작해요.")
         }
-        return NextAction(NextKind.NEXT_BLOCK, "다음 블록", "${s.breakMinutes}분 쉬었다면 다음 블록을 시작하세요")
+        return NextAction(NextKind.NEXT_BLOCK, "다음 집중을 시작해 볼까요?", "${s.breakMinutes}분 쉬었다면 이어서 시작해요.")
     }
 
     fun isManagerDay(state: AppState, date: String): Boolean = Dates.dayOfWeek(date) in state.settings.managerDays

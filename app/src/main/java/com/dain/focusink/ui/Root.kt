@@ -26,6 +26,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,7 +36,7 @@ import com.dain.focusink.core.Dates
 import com.dain.focusink.core.Focus
 import com.dain.focusink.core.Outcome
 
-enum class Tab(val label: String) { TODAY("오늘"), FOCUS("집중"), JOURNAL("저널"), HABITS("습관"), STATS("기록") }
+enum class Tab(val label: String) { TODAY("오늘"), FOCUS("집중"), RECORD("기록") }
 
 enum class Overlay { NONE, SETTINGS, REVIEW, MIGRATE, TOP3 }
 
@@ -116,9 +117,7 @@ fun Root(app: FocusInkApp, onRequestNotifications: () -> Unit) {
                     when (tab) {
                         Tab.TODAY -> TodayScreen(state, now, act, open = { overlay = it }, goTab = { tab = it })
                         Tab.FOCUS -> FocusSetupScreen(state, now, act)
-                        Tab.JOURNAL -> JournalScreen(state, now, act) { overlay = Overlay.MIGRATE }
-                        Tab.HABITS -> HabitsScreen(state, now, act)
-                        Tab.STATS -> StatsScreen(state, now, act)
+                        Tab.RECORD -> RecordScreen(state, now, act)
                     }
                 }
                 TabBar(tab) { tab = it }
@@ -128,30 +127,33 @@ fun Root(app: FocusInkApp, onRequestNotifications: () -> Unit) {
     }
 }
 
+/** 아래 탭: 글자만, 고른 탭은 굵게 + 위에 굵은 선 */
 @Composable
 private fun TabBar(selected: Tab, onSelect: (Tab) -> Unit) {
-    Column(Modifier.fillMaxWidth()) {
-        Rule(thick = true)
+    Column(Modifier.fillMaxWidth().background(Paper)) {
+        Rule()
         Row(Modifier.fillMaxWidth()) {
-            Tab.entries.forEachIndexed { i, t ->
+            Tab.entries.forEach { t ->
                 val (source, pressed) = rememberPress()
-                val dark = (t == selected) xor pressed
-                Box(
+                val on = t == selected
+                Column(
                     Modifier
                         .weight(1f)
-                        .heightIn(min = 60.dp)
-                        .background(if (dark) Ink else Paper)
+                        .heightIn(min = 62.dp)
+                        .background(if (pressed) Ink else Paper)
                         .inkClick(source) { onSelect(t) },
-                    contentAlignment = Alignment.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(
-                        t.label,
-                        style = Type.bodyBold.copy(fontSize = 18.sp),
-                        color = if (dark) Paper else Ink,
-                        textAlign = TextAlign.Center,
-                    )
+                    Box(Modifier.width(44.dp).height(3.dp).background(if (on && !pressed) Ink else Paper))
+                    Box(Modifier.heightIn(min = 56.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            t.label,
+                            style = Type.body.copy(fontSize = 18.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal),
+                            color = if (pressed) Paper else if (on) Ink else Muted,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
-                if (i < Tab.entries.lastIndex) Box(Modifier.width(1.dp).height(60.dp).background(Ink))
             }
         }
     }

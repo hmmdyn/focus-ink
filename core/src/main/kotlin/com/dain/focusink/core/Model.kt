@@ -63,12 +63,12 @@ data class FocusSession(
 
 @Serializable
 enum class DistractionCategory(val label: String) {
-    PHONE("폰"),
+    PHONE("휴대폰"),
     SNS("SNS·영상"),
-    MESSAGE("메시지·알림"),
+    MESSAGE("메시지"),
     THOUGHT("딴생각"),
     PERSON("사람"),
-    ENVIRONMENT("환경·소음"),
+    ENVIRONMENT("소음·환경"),
     OTHER("기타"),
 }
 

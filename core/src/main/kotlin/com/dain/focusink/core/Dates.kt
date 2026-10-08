@@ -42,6 +42,12 @@ object Dates {
         return "${d.monthValue}월 ${d.dayOfMonth}일 (${dowShort(date)})"
     }
 
+    /** "10월 9일 금요일" */
+    fun long(date: String): String {
+        val d = LocalDate.parse(date)
+        return "${d.monthValue}월 ${d.dayOfMonth}일 ${dowShort(date)}요일"
+    }
+
     fun shortMd(date: String): String {
         val d = LocalDate.parse(date)
         return String.format(Locale.ROOT, "%d/%d", d.monthValue, d.dayOfMonth)

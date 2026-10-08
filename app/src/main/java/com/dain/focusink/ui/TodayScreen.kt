@@ -1,5 +1,6 @@
 package com.dain.focusink.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,12 +10,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dain.focusink.core.AppState
 import com.dain.focusink.core.Dates
 import com.dain.focusink.core.Distractions
@@ -26,144 +27,184 @@ import com.dain.focusink.core.HabitStatus
 import com.dain.focusink.core.Habits
 import com.dain.focusink.core.Journal
 import com.dain.focusink.core.NextKind
+import com.dain.focusink.core.Source
 import com.dain.focusink.core.Stats
 
+/** 수첩의 한 쪽. 날짜를 넘기며 지난 기록도 본다. */
 @Composable
 fun TodayScreen(state: AppState, now: Long, act: Actions, open: (Overlay) -> Unit, goTab: (Tab) -> Unit) {
     val today = Dates.today(now)
-    val next = Guide.next(state, now)
-    val manager = Guide.isManagerDay(state, today)
+    var date by rememberSaveable { mutableStateOf(today) }
+    val isToday = date == today
+    var adding by rememberSaveable { mutableStateOf(false) }
+    var menuFor by rememberSaveable { mutableStateOf<String?>(null) }
 
     Screen {
+        // 머리말: 날짜와 쪽 넘김
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                T(Dates.pretty(today), Type.title)
-                T(
-                    if (manager) "매니저 데이 · 통화와 회의는 오후에 몰아서" else "메이커 데이 · 오전 3시간은 딥워크",
-                    Type.caption,
-                )
-            }
-            InkLink("설정", { open(Overlay.SETTINGS) })
+            PageTurn("‹") { date = Dates.plusDays(date, -1) }
+            T(Dates.long(date), Type.display.copy(fontSize = 25.sp), maxLines = 1, modifier = Modifier.padding(horizontal = 2.dp))
+            PageTurn("›") { date = Dates.plusDays(date, 1) }
+            Spacer(Modifier.weight(1f))
+            InkLink("설정", { open(Overlay.SETTINGS) }, underline = false, style = Type.body.copy(color = Muted))
         }
-        Gap(14.dp)
+        if (!isToday) {
+            InkLink("오늘로 돌아가기", { date = today }, style = Type.caption.copy(color = Muted))
+        } else if (Guide.isManagerDay(state, today)) {
+            T("오늘은 회의와 통화를 오후에 몰아 두는 날이에요.", Type.caption)
+        }
+        Gap(10.dp)
+        Rule(strong = true)
 
-        // 지금 할 일: 하나만
-        Boxed(inverted = true) {
-            T("지금", Type.label, color = Paper)
-            T(next.title, Type.heading, color = Paper)
-            T(next.detail, Type.body, color = Paper)
-            val (label, action) = when (next.kind) {
+        // 지금 할 일 (오늘 쪽에만)
+        if (isToday) {
+            val next = Guide.next(state, now)
+            Gap(22.dp)
+            T(next.title, Type.title)
+            if (next.detail.isNotBlank()) T(next.detail, Type.body.copy(color = Muted), modifier = Modifier.padding(top = 2.dp))
+            val action: Pair<String, () -> Unit>? = when (next.kind) {
                 NextKind.MIGRATE -> "정리하기" to { open(Overlay.MIGRATE) }
-                NextKind.PLAN_TOP3 -> "Top 3 정하기" to { open(Overlay.TOP3) }
-                NextKind.FIRST_BLOCK, NextKind.NEXT_BLOCK -> "집중 준비" to { goTab(Tab.FOCUS) }
-                NextKind.REVIEW -> "리뷰 시작" to { open(Overlay.REVIEW) }
-                else -> null to {}
+                NextKind.PLAN_TOP3 -> "고르기" to { open(Overlay.TOP3) }
+                NextKind.FIRST_BLOCK, NextKind.NEXT_BLOCK -> "집중 준비하기" to { goTab(Tab.FOCUS) }
+                NextKind.REVIEW -> "마무리하기" to { open(Overlay.REVIEW) }
+                else -> null
             }
-            if (label != null) {
-                Gap(10.dp)
-                InkButton(label, action, Modifier.fillMaxWidth(), filled = false)
-            }
-        }
-
-        Section("오늘 TOP 3", trailing = { InkLink("편집", { open(Overlay.TOP3) }, style = Type.caption) }) {
-            val top = Journal.topThree(state, today)
-            if (top.isEmpty()) {
-                T("아직 없음 · 가장 중요한 세 가지만 고르세요", Type.caption)
-            }
-            top.forEachIndexed { i, e ->
-                EntryLine(e, number = i + 1) { act.update { s -> Journal.toggleDone(s, e.id, act.now()) } }
+            if (action != null) {
+                Gap(14.dp)
+                InkButton(action.first, action.second, filled = true, height = 48.dp)
             }
         }
 
-        val habits = Habits.active(state)
+        // 할 일
+        val entries = Journal.forDate(state, date)
+        val top = Journal.topThree(state, date)
+        val rest = entries.filterNot { e -> top.any { it.id == e.id } }
+        val tasks = entries.filter { it.kind == EntryKind.TASK && it.status != EntryStatus.CANCELLED }
+        Section(
+            if (isToday) "오늘 할 일" else "이날 할 일",
+            trailing = { if (tasks.isNotEmpty()) T("${tasks.count { it.status == EntryStatus.DONE }}/${tasks.size}", Type.caption) },
+        ) {
+            if (entries.isEmpty() && !adding) T(if (isToday) "아직 적은 일이 없어요." else "이날은 적은 일이 없어요.", Type.body.copy(color = Muted), modifier = Modifier.padding(vertical = 10.dp))
+            (top + rest).forEach { e ->
+                val number = top.indexOfFirst { it.id == e.id }.takeIf { it >= 0 }?.plus(1)
+                EntryLine(
+                    e, number = number,
+                    trailing = { InkLink("⋯", { menuFor = if (menuFor == e.id) null else e.id }, underline = false, style = Type.heading.copy(color = Muted)) },
+                    onClick = if (e.kind == EntryKind.TASK && e.status != EntryStatus.CANCELLED) {
+                        { act.update { s -> Journal.toggleDone(s, e.id, act.now()) } }
+                    } else null,
+                )
+                if (menuFor == e.id) EntryMenu(e, today, act) { menuFor = null }
+            }
+            val pending = if (isToday) Journal.pendingMigration(state, today).size else 0
+            if (pending > 0 && Guide.next(state, now).kind != NextKind.MIGRATE) {
+                InkLink("지난 할 일 ${pending}개 정리하기", { open(Overlay.MIGRATE) })
+            }
+            if (adding) {
+                AddEntry(act, date) { adding = false }
+            } else {
+                InkLink("+ 할 일 추가", { adding = true }, underline = false, style = Type.body.copy(color = Muted))
+            }
+        }
+
+        // 습관
+        val habits = Habits.active(state).filter { it.createdDate <= date }
         if (habits.isNotEmpty()) {
             Section("습관") {
                 habits.forEach { h ->
+                    val done = Habits.isChecked(state, h.id, date)
                     val st = Habits.status(state, h, today)
-                    val streak = Habits.streak(state, h.id, today)
-                    InkRow({ act.update { s -> Habits.toggle(s, h.id, today) } }) { dark ->
-                        Square(st == HabitStatus.DONE)
-                        Spacer(Modifier.width(12.dp))
+                    InkRow({ act.update { s -> Habits.toggle(s, h.id, date) } }) { dark ->
+                        val c = if (dark) Paper else Ink
+                        Square(done)
+                        Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
-                            T(h.name + if (h.baseline) "  · 기준선" else "", Type.bodyBold, color = if (dark) Paper else Ink)
-                            val sub = when (st) {
-                                HabitStatus.MUST_TODAY -> "어제 놓침 — 오늘은 꼭. 두 번 연속은 안 됩니다"
-                                HabitStatus.DONE -> "완료 · ${streak}일 연속"
-                                HabitStatus.PENDING -> listOf(h.anchor.takeIf { it.isNotBlank() }?.let { "$it →" }, h.tiny.ifBlank { null })
-                                    .filterNotNull().joinToString(" ").ifBlank { "${streak}일 연속" }
+                            T(h.name, Type.body, color = c)
+                            if (isToday && st == HabitStatus.MUST_TODAY) {
+                                T("어제 못 했어요. 오늘은 작게라도 해요.", Type.caption, color = c)
+                            } else if (isToday && !done && h.tiny.isNotBlank()) {
+                                T(listOf(h.anchor, h.tiny).filter { it.isNotBlank() }.joinToString(" "), Type.caption, color = if (dark) Paper else Muted)
                             }
-                            T(sub, Type.caption, color = if (dark) Paper else if (st == HabitStatus.MUST_TODAY) Ink else Muted)
                         }
+                        val streak = Habits.streak(state, h.id, date)
+                        if (streak > 0) T("${streak}일째", Type.caption, color = if (dark) Paper else Muted)
                     }
                 }
             }
         }
 
-        Section("오늘 기록") {
-            val d = Stats.day(state, today)
-            T(Stats.summaryLine(d), Type.body)
-            val pending = Journal.pendingMigration(state, today).size
-            if (pending > 0) {
-                InkLink("옮겨 적기 대기 ${pending}개", { open(Overlay.MIGRATE) })
-            }
-            Distractions.weeklyTarget(state, today)?.let { w ->
-                Gap(6.dp)
-                T("이번 주 제거: ${w.category.label}", Type.bodyBold)
-                if (w.plan.isNotBlank()) T(w.plan, Type.caption)
-            }
+        // 꼬리말
+        Gap(28.dp)
+        Rule()
+        Gap(10.dp)
+        T(Stats.summaryLine(Stats.day(state, date)), Type.caption)
+        Distractions.weeklyTarget(state, date)?.let { w ->
+            T("이번 주에 줄일 딴짓: ${w.category.label}", Type.caption)
         }
-
-        Section("빠른 기록") {
-            QuickCapture(act, today)
-            T("앞에 - 를 붙이면 메모, * 를 붙이면 중요", Type.caption, modifier = Modifier.padding(top = 6.dp))
-        }
-        Gap(24.dp)
+        Gap(20.dp)
     }
 }
 
 @Composable
-fun QuickCapture(act: Actions, date: String, placeholder: String = "떠오른 일을 바로 적기") {
-    var text by rememberSaveable(date) { mutableStateOf("") }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        InkField(text, { text = it }, placeholder, Modifier.weight(1f), onDone = {
-            if (text.isNotBlank()) {
-                act.update { Journal.add(it, text, date, act.now()) }
-                text = ""
+private fun PageTurn(glyph: String, onClick: () -> Unit) {
+    InkLink(glyph, onClick, underline = false, style = Type.display.copy(color = Muted, fontSize = 25.sp))
+}
+
+@Composable
+private fun EntryMenu(e: Entry, today: String, act: Actions, onDone: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(start = 34.dp, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        if (e.kind == EntryKind.TASK) {
+            InkLink(if (e.priority) "중요 해제" else "중요", { act.update { Journal.togglePriority(it, e.id) }; onDone() }, style = Type.caption.copy(color = Ink))
+            if (e.date < today && e.status == EntryStatus.OPEN) {
+                InkLink("오늘로", { act.update { Journal.migrate(it, e.id, today) }; onDone() }, style = Type.caption.copy(color = Ink))
             }
-        })
-        Spacer(Modifier.width(10.dp))
-        InkButton("적기", {
-            if (text.isNotBlank()) {
-                act.update { Journal.add(it, text, date, act.now()) }
-                text = ""
+            if (e.status != EntryStatus.CANCELLED) {
+                InkLink("안 하기", { act.update { Journal.cancel(it, e.id) }; onDone() }, style = Type.caption.copy(color = Ink))
             }
-        }, height = 48.dp)
+        }
+        InkLink("지우기", { act.update { Journal.delete(it, e.id) }; onDone() }, style = Type.caption.copy(color = Ink))
     }
 }
 
-/** 불렛저널 한 줄: • 할 일, × 완료, ~ 취소, – 메모 */
+@Composable
+fun AddEntry(act: Actions, date: String, onClose: (() -> Unit)? = null) {
+    var text by rememberSaveable(date) { mutableStateOf("") }
+    fun save() {
+        if (text.isNotBlank()) {
+            act.update { Journal.add(it, text, date, act.now()) }
+            text = ""
+        }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        InkField(text, { text = it }, "할 일을 적어 주세요", Modifier.weight(1f), onDone = { save() })
+        Spacer(Modifier.width(10.dp))
+        InkButton("추가", { save() }, height = 46.dp)
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        T("- 로 시작하면 메모, * 로 시작하면 중요한 일이 돼요.", Type.caption, modifier = Modifier.weight(1f))
+        if (onClose != null) InkLink("닫기", onClose, style = Type.caption.copy(color = Ink))
+    }
+}
+
+/** 목록 한 줄. 왼쪽 표시: 숫자 = 중요한 일, • 할 일, × 끝낸 일, – 메모 */
 @Composable
 fun EntryLine(e: Entry, number: Int? = null, trailing: (@Composable () -> Unit)? = null, onClick: (() -> Unit)?) {
     InkRow(onClick) { dark ->
-        val c = if (dark) Paper else Ink
+        val closed = e.kind == EntryKind.TASK && e.status != EntryStatus.OPEN
+        val c = if (dark) Paper else if (closed) Muted else Ink
         val glyph = when {
             e.kind == EntryKind.NOTE -> "–"
             e.status == EntryStatus.DONE -> "×"
             e.status == EntryStatus.CANCELLED -> "~"
+            number != null -> "$number"
             else -> "•"
         }
-        T(number?.let { "$it" } ?: glyph, Type.heading, color = c, modifier = Modifier.width(30.dp))
+        T(glyph, if (number != null && !closed) Type.title.copy(fontSize = 20.sp) else Type.heading, color = c, modifier = Modifier.width(34.dp))
         Column(Modifier.weight(1f)) {
-            T(
-                (if (e.priority && number == null) "* " else "") + e.text,
-                if (e.priority) Type.bodyBold else Type.body,
-                color = c,
-                strike = e.status != EntryStatus.OPEN && e.kind == EntryKind.TASK,
-            )
+            T(e.text, if (number != null && !closed) Type.bodyBold else Type.body, color = c, strike = closed)
             val meta = listOfNotNull(
-                if (e.migrations > 0) "${e.migrations}번 옮김" else null,
-                if (e.source == com.dain.focusink.core.Source.IPHONE) "아이폰" else null,
-                if (number != null && e.status == EntryStatus.DONE) "완료" else null,
+                if (e.migrations > 0) "${e.migrations}번 옮겼어요" else null,
+                if (e.source == Source.IPHONE) "아이폰에서 적음" else null,
             )
             if (meta.isNotEmpty()) T(meta.joinToString(" · "), Type.caption, color = if (dark) Paper else Muted)
         }
@@ -171,50 +212,102 @@ fun EntryLine(e: Entry, number: Int? = null, trailing: (@Composable () -> Unit)?
     }
 }
 
-/** 오늘 Top 3 편집 */
+/** 오늘 가장 중요한 일 세 가지 고르기 */
 @Composable
 fun Top3Screen(state: AppState, act: Actions, onClose: () -> Unit) {
     val today = act.today()
-    val existing = Journal.topThree(state, today)
-    val tasks = Journal.forDate(state, today).filter { it.kind == EntryKind.TASK && it.status == EntryStatus.OPEN && !it.priority }
+    val chosen = Journal.topThree(state, today)
+    val candidates = Journal.forDate(state, today).filter { it.kind == EntryKind.TASK && it.status == EntryStatus.OPEN }
     var newText by rememberSaveable { mutableStateOf("") }
+    val full = chosen.size >= 3
 
     Screen {
-        TopBar("오늘 Top 3", onBack = onClose)
-        T("오늘 반드시 앞으로 나아가게 할 세 가지. 나머지는 저널에.", Type.caption)
-        Section("현재 ${existing.size}/3") {
-            existing.forEachIndexed { i, e ->
-                EntryLine(e, number = i + 1, trailing = {
-                    InkLink("빼기", { act.update { s -> Journal.togglePriority(s, e.id) } })
-                }, onClick = null)
-            }
-            if (existing.size < 3) {
-                Gap()
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    InkField(newText, { newText = it }, "새로 적기", Modifier.weight(1f), onDone = {
-                        if (newText.isNotBlank()) {
-                            act.update { Journal.setTopThree(it, today, listOf(newText), act.now()) }
-                            newText = ""
-                        }
-                    })
-                    Spacer(Modifier.width(10.dp))
-                    InkButton("추가", {
-                        if (newText.isNotBlank()) {
-                            act.update { Journal.setTopThree(it, today, listOf(newText), act.now()) }
-                            newText = ""
-                        }
-                    }, height = 48.dp)
-                }
+        TopBar("오늘 가장 중요한 일", onBack = onClose)
+        Gap(6.dp)
+        T(if (full) "세 가지를 모두 골랐어요." else "오늘 꼭 끝내고 싶은 일을 세 가지까지 골라 주세요.", Type.body.copy(color = Muted))
+        Gap(10.dp)
+        candidates.forEach { e ->
+            val on = e.priority
+            InkRow({ if (on || !full) act.update { s -> Journal.togglePriority(s, e.id) } }) { dark ->
+                Square(on)
+                Spacer(Modifier.width(14.dp))
+                T(e.text, Type.body, color = if (dark) Paper else Ink, modifier = Modifier.weight(1f))
             }
         }
-        if (existing.size < 3 && tasks.isNotEmpty()) {
-            Section("오늘 할 일에서 고르기") {
-                tasks.take(8).forEach { e ->
-                    EntryLine(e) { act.update { s -> Journal.togglePriority(s, e.id) } }
-                }
+        if (!full) {
+            Gap(6.dp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                InkField(newText, { newText = it }, "새로 적기", Modifier.weight(1f), onDone = {
+                    if (newText.isNotBlank()) {
+                        act.update { Journal.setTopThree(it, today, listOf(newText), act.now()) }
+                        newText = ""
+                    }
+                })
+                Spacer(Modifier.width(10.dp))
+                InkButton("추가", {
+                    if (newText.isNotBlank()) {
+                        act.update { Journal.setTopThree(it, today, listOf(newText), act.now()) }
+                        newText = ""
+                    }
+                }, height = 46.dp)
             }
         }
-        Gap(20.dp)
+        Gap(28.dp)
         InkButton("완료", onClose, Modifier.fillMaxWidth(), filled = true)
+    }
+}
+
+/** 지난 할 일을 하나씩: 다시 적어 옮기기 / 이미 했음 / 하지 않기 */
+@Composable
+fun MigrateScreen(state: AppState, act: Actions, onClose: () -> Unit) {
+    val today = act.today()
+    val pending = Journal.pendingMigration(state, today)
+    var rewrite by rememberSaveable { mutableStateOf("") }
+    var handled by rememberSaveable { mutableStateOf(0) }
+
+    Screen {
+        TopBar("지난 할 일 정리", onBack = onClose)
+        if (pending.isEmpty()) {
+            Gap(28.dp)
+            T("정리를 마쳤어요.", Type.title)
+            T(if (handled > 0) "${handled}개를 정리했어요. 이제 오늘 할 일만 남았어요." else "남아 있는 지난 할 일이 없어요.", Type.body.copy(color = Muted))
+            Gap(28.dp)
+            InkButton("닫기", onClose, Modifier.fillMaxWidth(), filled = true)
+            return@Screen
+        }
+        val e = pending.first()
+        T("남은 일 ${pending.size}개", Type.caption, modifier = Modifier.padding(top = 4.dp))
+        Gap(22.dp)
+        T(Dates.long(e.date) + "에 적은 일" + if (e.migrations > 0) " · ${e.migrations}번 옮겼어요" else "", Type.caption)
+        Gap(6.dp)
+        T(e.text, Type.display)
+        Gap(18.dp)
+        T(
+            if (e.migrations >= 2) "벌써 ${e.migrations}번 미뤘어요. 더 작게 나눠서 다시 적어 볼까요?"
+            else "오늘도 할 일인가요? 옮기려면 지금 한 번 더 적어 보세요.",
+            Type.lead,
+        )
+        Gap(6.dp)
+        InkField(rewrite, { rewrite = it }, "비워 두면 그대로 옮겨요", singleLine = false)
+        Gap(22.dp)
+        InkButton("오늘 할 일로 옮기기", {
+            act.update { Journal.migrate(it, e.id, today, rewrite) }
+            rewrite = ""
+            handled++
+        }, Modifier.fillMaxWidth(), filled = true, height = 54.dp)
+        Gap(10.dp)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            InkButton("이미 했어요", {
+                act.update { Journal.markDone(it, e.id, act.now()) }
+                rewrite = ""
+                handled++
+            }, Modifier.weight(1f))
+            InkButton("하지 않을래요", {
+                act.update { Journal.cancel(it, e.id) }
+                rewrite = ""
+                handled++
+            }, Modifier.weight(1f))
+        }
+        Gap(24.dp)
     }
 }

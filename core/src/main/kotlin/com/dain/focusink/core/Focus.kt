@@ -24,7 +24,7 @@ object Focus {
         val planned = minutes.coerceIn(5, 240)
         val active = ActiveSession(
             id = Ids.new(),
-            label = label.trim().ifEmpty { "딥워크" },
+            label = label.trim().ifEmpty { "집중" },
             intention = intention.trim(),
             entryId = entryId,
             startedAt = now,

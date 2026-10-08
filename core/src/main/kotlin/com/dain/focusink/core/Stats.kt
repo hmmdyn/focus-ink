@@ -55,9 +55,20 @@ object Stats {
 
     fun hasReview(state: AppState, date: String): Boolean = state.reviews.any { it.date == date }
 
+    /** 90 → "1시간 30분", 45 → "45분", 120 → "2시간" */
+    fun duration(minutes: Int): String {
+        val h = minutes / 60
+        val m = minutes % 60
+        return when {
+            h == 0 -> "${m}분"
+            m == 0 -> "${h}시간"
+            else -> "${h}시간 ${m}분"
+        }
+    }
+
     fun summaryLine(stat: DayStat): String =
-        "딥워크 ${stat.deepMinutes}분 · 블록 ${stat.blocks} · 방해 ${stat.distractions}" +
-            (if (stat.urgesResisted > 0) " · 버틴 충동 ${stat.urgesResisted}" else "")
+        "집중 ${duration(stat.deepMinutes)} · 딴짓 ${stat.distractions}번" +
+            (if (stat.urgesResisted > 0) " · 참음 ${stat.urgesResisted}번" else "")
 }
 
 object Reviews {

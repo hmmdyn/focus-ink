@@ -1,8 +1,12 @@
 package com.dain.focusink.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,56 +35,59 @@ fun OnboardingScreen(state: AppState, act: Actions, onRequestNotifications: () -
     var t3 by rememberSaveable { mutableStateOf("") }
 
     Screen {
-        T("${step + 1} / 4", Type.label)
-        Gap(8.dp)
+        // 진행 표시: 네 칸
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 8.dp)) {
+            repeat(4) { i -> Box(Modifier.width(28.dp).height(3.dp).background(if (i <= step) Ink else Faint)) }
+        }
+        Gap(28.dp)
         when (step) {
             0 -> {
-                T("Focus Ink", Type.title)
-                Gap()
-                T("이 기기는 집중 전용입니다.", Type.heading)
-                Gap()
-                Principle("덜어내기", "피드·색·알림 없음. 폰은 주차장에.")
-                Principle("닻 15분", "블록을 시작하면 처음 15분은 무조건 자리를 지킵니다.")
-                Principle("작게, 매일", "습관 하나를 민망할 만큼 작게. 두 번 연속 빠지지 않기.")
-                Principle("적고 내려놓기", "할 일은 저널에. 미룬 일은 직접 다시 옮겨 적기.")
-                Principle("저녁 리뷰", "결과 확인 → 미완료 정리 → 내일 Top 3.")
+                T("집중할 때만 꺼내는\n수첩이에요", Type.display)
+                Gap(24.dp)
+                listOf(
+                    "할 일을 적고, 가장 중요한 일을 세 가지까지 골라요.",
+                    "집중을 시작하면 처음 15분은 멈추지 않아요.",
+                    "습관은 하나만, 아주 작게 시작해요.",
+                    "저녁에는 하루를 돌아보고 내일 할 일을 정해요.",
+                ).forEach {
+                    T(it, Type.lead, modifier = Modifier.padding(vertical = 6.dp))
+                }
             }
             1 -> {
-                T("습관 하나", Type.title)
-                T("30일 동안 이것 하나만. 동기가 없어도 할 수 있을 만큼 작게.", Type.caption)
-                Gap()
-                InkField(habit, { habit = it }, "습관 (예: 매일 독서)")
-                InkField(tiny, { tiny = it }, "작은 버전 (예: 책 펴기)")
-                InkField(anchor, { anchor = it }, "언제 (예: 아침 커피 내린 후)")
-                Gap()
-                T("건너뛰고 나중에 습관 탭에서 추가해도 됩니다.", Type.caption)
+                T("습관 하나를\n정해 볼까요?", Type.display)
+                Gap(18.dp)
+                InkField(habit, { habit = it }, "어떤 습관인가요? (예: 매일 독서)")
+                InkField(tiny, { tiny = it }, "가장 작게 하면? (예: 책 펴기)")
+                InkField(anchor, { anchor = it }, "언제 할까요? (예: 아침 커피를 내린 뒤)")
+                Gap(12.dp)
+                T("나중에 기록 탭에서 정해도 괜찮아요.", Type.caption)
             }
             2 -> {
-                T("하루 리듬", Type.title)
-                T("저녁 리뷰 시각과, 화면을 끄는 디지털 선셋 시각.", Type.caption)
-                Gap()
+                T("알림을 받을\n시간을 정해 주세요", Type.display)
+                Gap(18.dp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    T("저녁 리뷰", Type.body, modifier = Modifier.width(110.dp))
+                    T("하루 마무리", Type.body, modifier = Modifier.width(150.dp))
                     InkField(review, { review = it }, "21:30", Modifier.weight(1f))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    T("디지털 선셋", Type.body, modifier = Modifier.width(110.dp))
+                    T("휴대폰 내려놓기", Type.body, modifier = Modifier.width(150.dp))
                     InkField(sunset, { sunset = it }, "22:30", Modifier.weight(1f))
                 }
-                Gap()
-                T("이 두 시각에만 알림이 옵니다. 다음 화면에서 알림 권한을 허용해 주세요.", Type.caption)
+                Gap(12.dp)
+                T("알림은 이 두 번만 보내요.", Type.caption)
             }
             else -> {
-                T("오늘 Top 3", Type.title)
-                T("오늘 반드시 앞으로 나아가게 할 세 가지. 비워 두면 오늘 화면에서 정합니다.", Type.caption)
-                Gap()
-                InkField(t1, { t1 = it }, "1.")
-                InkField(t2, { t2 = it }, "2.")
-                InkField(t3, { t3 = it }, "3.")
+                T("오늘 가장 중요한 일은\n무엇인가요?", Type.display)
+                Gap(18.dp)
+                InkField(t1, { t1 = it }, "첫 번째")
+                InkField(t2, { t2 = it }, "두 번째")
+                InkField(t3, { t3 = it }, "세 번째")
+                Gap(12.dp)
+                T("비워 두고 나중에 정해도 돼요.", Type.caption)
             }
         }
-        Gap(28.dp)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Gap(36.dp)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (step > 0) InkButton("이전", { step-- }, Modifier.weight(1f))
             InkButton(if (step < 3) "다음" else "시작하기", {
                 if (step == 2) onRequestNotifications()
@@ -106,11 +113,4 @@ fun OnboardingScreen(state: AppState, act: Actions, onRequestNotifications: () -
             }, Modifier.weight(2f), filled = true)
         }
     }
-}
-
-@Composable
-private fun Principle(title: String, body: String) {
-    Gap(8.dp)
-    T(title, Type.bodyBold)
-    T(body, Type.body)
 }

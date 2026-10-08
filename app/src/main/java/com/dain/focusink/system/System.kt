@@ -32,8 +32,8 @@ object Notifications {
 
     fun createChannels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CH_SESSION, "집중 블록 종료", NotificationManager.IMPORTANCE_HIGH))
-        nm.createNotificationChannel(NotificationChannel(CH_REMINDER, "리뷰·선셋 알림", NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(NotificationChannel(CH_SESSION, "집중 시간 종료", NotificationManager.IMPORTANCE_HIGH))
+        nm.createNotificationChannel(NotificationChannel(CH_REMINDER, "하루 마무리 알림", NotificationManager.IMPORTANCE_DEFAULT))
     }
 
     fun canNotify(ctx: Context): Boolean =
@@ -128,8 +128,8 @@ class AlarmReceiver : BroadcastReceiver() {
                 if (Focus.remainingMinutes(a, now) <= 1) {
                     Notifications.notify(
                         ctx, Notifications.ID_SESSION, Notifications.CH_SESSION,
-                        "블록 완료 · ${a.label}",
-                        "${a.plannedMinutes}분을 채웠어요. 회고를 적고 ${s.settings.breakMinutes}분 쉬세요. 폰은 보지 않기.",
+                        "${a.plannedMinutes}분 집중을 마쳤어요",
+                        "${a.label} 집중이 끝났어요. 짧게 돌아보고 ${s.settings.breakMinutes}분 쉬어요.",
                     )
                 }
             }
@@ -137,7 +137,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 if (!Stats.hasReview(s, Dates.today(now))) {
                     Notifications.notify(
                         ctx, Notifications.ID_REVIEW, Notifications.CH_REMINDER,
-                        "저녁 리뷰", "오늘 결과 확인 → 미완료 정리 → 내일 Top 3 (3분)",
+                        "하루를 마무리할 시간이에요", "오늘 한 일을 확인하고 내일 할 일을 정해요. 3분이면 충분해요.",
                     )
                 }
                 Alarms.scheduleDaily(ctx, s.settings)
@@ -145,7 +145,7 @@ class AlarmReceiver : BroadcastReceiver() {
             Alarms.ACTION_SUNSET -> {
                 Notifications.notify(
                     ctx, Notifications.ID_SUNSET, Notifications.CH_REMINDER,
-                    "디지털 선셋", "폰은 주차장에. 화면을 끄고 책이나 일기로 마무리하세요.",
+                    "휴대폰을 내려놓을 시간이에요", "휴대폰은 침대 밖에서 충전하고, 화면 대신 책이나 일기로 하루를 마무리해요.",
                 )
                 Alarms.scheduleDaily(ctx, s.settings)
             }
