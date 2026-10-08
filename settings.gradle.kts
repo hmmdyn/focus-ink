@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "focus-ink"
-include(":core")
+include(":core", ":app")

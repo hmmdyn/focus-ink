@@ -200,3 +200,23 @@ class StoreTest {
         assertFalse(t == Ids.topic())
     }
 }
+
+class SyncTest {
+    @Test fun parsesNtfyStreamAndSkipsOwnMessages() {
+        val body = """
+            {"id":"a1","time":1791450000,"event":"open","topic":"t"}
+            {"id":"a2","time":1791450060,"event":"message","topic":"t","message":"방해 Instagram"}
+            {"id":"a3","time":1791450120,"event":"message","topic":"t","message":"집중 시작 · A","tags":["focusink"]}
+            {"id":"a4","time":1791450180,"event":"message","topic":"t","message":"할일 우유 사기"}
+            {"id":"a5","time":1791450240,"event":"message","topic":"t","message":"그냥 잡담"}
+        """.trimIndent()
+        val msgs = SyncCodec.parseStream(body)
+        assertEquals(listOf("a2", "a3", "a4", "a5"), msgs.map { it.id })
+        val (s, applied) = SyncCodec.applyAll(AppState(), msgs, 1791450300_000L, SEOUL)
+        assertEquals(2, applied)
+        assertEquals(1, s.distractions.size)
+        assertEquals(1791450060_000L, s.distractions.single().at)
+        assertEquals("우유 사기", s.entries.single().text)
+        assertEquals("a5", s.settings.lastSyncId)
+    }
+}
