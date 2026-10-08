@@ -48,7 +48,7 @@ fun RecordScreen(state: AppState, now: Long, act: Actions) {
             q?.let { "집중도 " + String.format(Locale.ROOT, "%.1f", it) + "점" },
             days.sumOf { it.urgesResisted }.takeIf { it > 0 }?.let { "참은 딴짓 ${it}번" },
         )
-        if (parts.isNotEmpty()) T(parts.joinToString(" · "), Type.body.copy(color = Muted))
+        if (total > 0 && parts.isNotEmpty()) T(parts.joinToString(" · "), Type.body.copy(color = Muted))
 
         // 막대: 세로 막대 7개, 아래에 요일
         Gap(22.dp)
@@ -100,7 +100,8 @@ private fun HabitBlock(state: AppState, h: Habit, today: String, act: Actions) {
     Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             T(h.name, Type.heading, modifier = Modifier.weight(1f))
-            T("${Habits.streak(state, h.id, today)}일째", Type.body.copy(color = Muted))
+            val streak = Habits.streak(state, h.id, today)
+            if (streak > 0) T("${streak}일째", Type.body.copy(color = Muted))
             InkLink("⋯", { menu = !menu }, underline = false, style = Type.heading.copy(color = Muted))
         }
         if (h.anchor.isNotBlank() || h.tiny.isNotBlank()) {
