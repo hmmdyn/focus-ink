@@ -135,6 +135,7 @@ class WalkthroughTest {
         tap("그래도 그만두기")
         tap("한 번 더 누르면 그만둬요")
         shot("13_reflect")
+        compose.onNodeWithText("시작하고 바로 멈췄어요. 딴짓은 1번 했어요.").assertExists()
         tap("몰입했어요")
         type(0, "1절 한 쪽을 끝냈고, 참고문헌 정리가 남았어요")
         tap("저장하기")
@@ -144,7 +145,7 @@ class WalkthroughTest {
 
         // 5. 기록
         tap("기록")
-        compose.onNodeWithText("SNS·영상").assertExists()
+        assert(compose.onAllNodesWithText("SNS·영상").fetchSemanticsNodes().isNotEmpty()) // 집중 중 기록한 딴짓이 집계됨
         shot("15_record")
 
         // 6. 오늘 쪽에서 습관 체크

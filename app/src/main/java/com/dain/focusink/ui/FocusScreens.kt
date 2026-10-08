@@ -278,8 +278,9 @@ fun ReflectScreen(state: AppState, now: Long, sessionId: String, act: Actions, o
         Screen {
             T(if (x.outcome == Outcome.ABANDONED) "이번에는 여기까지예요" else "수고했어요", Type.display)
             Gap(6.dp)
+            val spent = if (x.actualMinutes < 1) "시작하고 바로 멈췄어요" else "${Stats.duration(x.actualMinutes)} 동안 집중했어요"
             T(
-                "${x.label}에 ${Stats.duration(x.actualMinutes)} 집중했어요" + if (x.distractions > 0) ". 딴짓은 ${x.distractions}번 했어요." else ".",
+                spent + if (x.distractions > 0) ". 딴짓은 ${x.distractions}번 했어요." else ".",
                 Type.lead,
             )
             Section("집중은 어땠나요") {
