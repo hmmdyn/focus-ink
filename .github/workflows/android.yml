@@ -1,0 +1,72 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Test and build
+        shell: bash
+        run: |
+          set -o pipefail
+          TASKS=":core:test"
+          if [ -d app ]; then TASKS="$TASKS :app:assembleRelease"; fi
+          gradle $TASKS --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Report errors as annotations
+        if: failure()
+        shell: bash
+        run: |
+          # Kotlin 컴파일 에러를 주석으로 올려서 CI 화면과 API 에서 바로 보이게 한다
+          grep -E '^e: ' build.log | head -40 | while IFS= read -r line; do
+            msg="${line#e: }"
+            echo "::error::${msg//$'\n'/ }"
+          done || true
+          grep -E -A3 '^\* What went wrong' build.log | head -30 | tr '\n' ' ' | sed 's/^/::error::/' ; echo
+          for f in core/build/test-results/test/*.xml; do
+            [ -f "$f" ] || continue
+            grep -o 'testcase name="[^"]*"[^>]*>[[:space:]]*<failure message="[^"]*"' "$f" | head -10 | sed 's/^/::error::TEST /' || true
+          done
+
+      - name: Upload APK
+        if: success() && hashFiles('app/build/outputs/apk/release/*.apk') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: focus-ink-apk
+          path: app/build/outputs/apk/release/*.apk
+
+      - name: Publish "latest" release
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && hashFiles('app/build/outputs/apk/release/*.apk') != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/*.apk focus-ink.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest focus-ink.apk \
+            --title "최신 빌드 (${GITHUB_SHA::7})" \
+            --notes "main 브랜치 최신 커밋에서 자동 빌드. Palma 2 브라우저에서 focus-ink.apk 를 받아 설치하세요." \
+            --target "$GITHUB_SHA" --prerelease
