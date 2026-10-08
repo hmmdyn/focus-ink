@@ -61,8 +61,9 @@ fun ReviewScreen(state: AppState, now: Long, act: Actions, onClose: () -> Unit) 
             }
         }
 
-        val open = Journal.forDate(state, today).filter { it.kind == EntryKind.TASK && it.status == EntryStatus.OPEN }
-        Section("2. 못 끝낸 일 ${open.size}개") {
+        val topIds = Journal.topThree(state, today).map { it.id }.toSet()
+        val open = Journal.forDate(state, today).filter { it.kind == EntryKind.TASK && it.status == EntryStatus.OPEN && it.id !in topIds }
+        Section("2. 그 밖의 못 끝낸 일 ${open.size}개") {
             if (open.isEmpty()) T("없음. 깔끔합니다.", Type.caption)
             else {
                 open.take(6).forEach { e -> EntryLine(e) { act.update { s -> Journal.toggleDone(s, e.id, act.now()) } } }

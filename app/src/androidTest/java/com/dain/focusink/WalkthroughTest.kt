@@ -46,6 +46,8 @@ class WalkthroughTest {
     }
 
     private fun shot(name: String) {
+        // 테스트의 가상 시계를 진행시켜 세션 시작/종료 플래시(흑→백)가 끝난 화면을 찍는다
+        compose.mainClock.advanceTimeBy(1_000)
         compose.waitForIdle()
         Thread.sleep(700)
         val bmp: Bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot() ?: return
