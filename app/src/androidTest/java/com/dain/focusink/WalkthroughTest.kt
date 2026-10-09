@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -166,10 +167,14 @@ class WalkthroughTest {
         // 7. 설정: 하루 마무리 시각을 00:00 으로 바꿔 바로 띄운다
         tap("설정")
         field(0).performTextReplacement("00:00")
+        field(0).performImeAction() // 키보드 닫기
         compose.waitForIdle()
         tap("시간 저장하기")
+        // 저장되면 저장 버튼이 사라진다
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("시간 저장하기").fetchSemanticsNodes().isEmpty() }
         shot("17_settings")
         tap("‹ 닫기")
+        shot("17b_today_review_due")
 
         // 8. 하루 마무리
         compose.onNodeWithText("하루를 마무리할 시간이에요").assertExists()

@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -239,6 +240,8 @@ fun InkField(
     onDone: (() -> Unit)? = null,
     style: TextStyle = Type.body,
 ) {
+    // 완료를 누르면 키보드를 닫는다. e-ink 에서는 키보드가 화면 절반을 가리고 다시 그리는 데도 오래 걸린다.
+    val keyboard = LocalSoftwareKeyboardController.current
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
@@ -247,7 +250,10 @@ fun InkField(
         singleLine = singleLine,
         cursorBrush = SolidColor(Ink),
         keyboardOptions = KeyboardOptions(imeAction = if (singleLine) ImeAction.Done else ImeAction.Default),
-        keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
+        keyboardActions = KeyboardActions(onDone = {
+            onDone?.invoke()
+            if (singleLine) keyboard?.hide()
+        }),
         decorationBox = { inner ->
             Column {
                 Box(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
