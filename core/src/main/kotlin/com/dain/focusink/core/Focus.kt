@@ -19,6 +19,7 @@ object Focus {
         intention: String = "",
         entryId: String? = null,
         anchorMinutes: Int = state.settings.anchorMinutes,
+        ifThen: String = "",
     ): AppState {
         if (state.active != null) return state
         val planned = minutes.coerceIn(5, 240)
@@ -30,6 +31,7 @@ object Focus {
             startedAt = now,
             plannedMinutes = planned,
             anchorMinutes = anchorMinutes.coerceIn(0, planned),
+            ifThen = ifThen.trim(),
         )
         return state.copy(active = active)
     }
@@ -94,17 +96,46 @@ object Focus {
             quality = quality.coerceIn(0, 3),
             reflection = reflection.trim(),
             distractions = sessionDistractions(state, a.id).count { !it.resisted },
+            ifThen = a.ifThen,
         )
         return state.copy(active = null, sessions = state.sessions + session)
     }
 
-    /** 끝난 세션의 회고(집중도·메모)를 나중에 채운다. */
-    fun reflect(state: AppState, sessionId: String, quality: Int, reflection: String): AppState =
+    /** 끝난 세션의 회고(집중도·메모·다음에 이어서 할 일)를 채운다. */
+    fun reflect(state: AppState, sessionId: String, quality: Int, reflection: String, nextStep: String = ""): AppState =
         state.copy(
             sessions = state.sessions.map {
-                if (it.id == sessionId) it.copy(quality = quality.coerceIn(0, 3), reflection = reflection.trim()) else it
+                if (it.id == sessionId) {
+                    it.copy(quality = quality.coerceIn(0, 3), reflection = reflection.trim(), nextStep = nextStep.trim())
+                } else it
             },
         )
+
+    /**
+     * 쉬는 시간(분). 짧은 휴식은 길수록 피로 회복에 더 도움이 된다(Albulescu 외 2022 메타분석).
+     * 집중 시간의 1/6 을 쉬되 설정값보다 짧지 않게: 90 → 15, 50 → 8, 25 → 5.
+     */
+    fun breakMinutes(plannedMinutes: Int, base: Int): Int =
+        maxOf(base, (plannedMinutes + 3) / 6)
+
+    /**
+     * 같은 할 일(없으면 같은 이름)로 했던 가장 최근 세션의 "다음에 이어서 할 일".
+     * 그 할 일을 이미 끝냈으면 보여 주지 않는다.
+     */
+    fun resumeNote(state: AppState, entryId: String?, label: String): FocusSession? {
+        if (entryId != null) {
+            val e = state.entries.firstOrNull { it.id == entryId }
+            if (e != null && e.status != EntryStatus.OPEN) return null
+        }
+        val key = label.trim()
+        return state.sessions
+            .filter { it.nextStep.isNotBlank() && (if (entryId != null) it.entryId == entryId else key.isNotEmpty() && it.label == key) }
+            .maxByOrNull { it.endedAt }
+    }
+
+    /** 지난 세션에서 쓴 if-then 문장들(최근 것부터, 중복 없이). 시작 화면에서 다시 고를 수 있게 한다. */
+    fun recentIfThens(state: AppState, limit: Int = 3): List<String> =
+        state.sessions.sortedByDescending { it.startedAt }.map { it.ifThen }.filter { it.isNotBlank() }.distinct().take(limit)
 
     // ---- 충동 10분 버티기 ----
 

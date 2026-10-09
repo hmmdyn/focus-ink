@@ -237,3 +237,142 @@ class HangulTest {
         assertEquals("2시간", Stats.duration(120))
     }
 }
+
+/** 참고 앱·연구 반영분 (docs/RESEARCH.md) */
+class EvidenceFeaturesTest {
+    private fun habit(created: String = "2026-10-01"): Pair<AppState, Habit> {
+        val s = Habits.add(AppState(), "독서", "책 펴기", "커피 내린 후", true, created)
+        return s to s.habits.first()
+    }
+
+    @Test fun ifThenAndResumeNoteCarryOver() {
+        val t0 = at(2026, 10, 8, 9)
+        var s = Journal.add(AppState(), "논문 3장", "2026-10-08", 1)
+        val e = s.entries.first()
+        s = Focus.start(s, e.text, 50, t0, entryId = e.id, ifThen = " 메모에 적고 돌아오기 ")
+        assertEquals("메모에 적고 돌아오기", s.active!!.ifThen)
+        s = Focus.finish(s, t0 + 51 * MIN)
+        val id = s.sessions.last().id
+        assertEquals("메모에 적고 돌아오기", s.sessions.last().ifThen)
+        s = Focus.reflect(s, id, 3, "1절 끝", " 2절 첫 문단부터 ")
+        assertEquals("2절 첫 문단부터", Focus.resumeNote(s, e.id, e.text)?.nextStep)
+        assertEquals(listOf("메모에 적고 돌아오기"), Focus.recentIfThens(s))
+        // 할 일을 끝내면 이어서 할 일은 더 보여 주지 않는다
+        s = Journal.markDone(s, e.id, t0 + 60 * MIN)
+        assertNull(Focus.resumeNote(s, e.id, e.text))
+        // 할 일 없이 이름으로 시작한 세션은 이름으로 찾는다
+        s = Focus.start(s, "코드 리뷰", 25, t0 + 2 * 60 * MIN)
+        s = Focus.finish(s, t0 + 2 * 60 * MIN + 26 * MIN)
+        s = Focus.reflect(s, s.sessions.last().id, 2, "", "PR 2개 남음")
+        assertEquals("PR 2개 남음", Focus.resumeNote(s, null, "코드 리뷰")?.nextStep)
+        assertNull(Focus.resumeNote(s, null, "다른 일"))
+    }
+
+    @Test fun breakScalesWithSessionLength() {
+        assertEquals(15, Focus.breakMinutes(90, 5))
+        assertEquals(8, Focus.breakMinutes(50, 5))
+        assertEquals(5, Focus.breakMinutes(25, 5))
+        assertEquals(10, Focus.breakMinutes(25, 10))
+    }
+
+    @Test fun restDayKeepsStreakAndIsLimitedToOncePerWeek() {
+        var (s, h) = habit()
+        // 10-05(월) ~ 10-07(수): 월 했음, 화 쉼, 수 했음
+        s = Habits.toggle(s, h.id, "2026-10-05")
+        s = Habits.toggleRest(s, h.id, "2026-10-06")
+        s = Habits.toggle(s, h.id, "2026-10-07")
+        assertTrue(Habits.isResting(s, h.id, "2026-10-06"))
+        assertEquals(2, Habits.streak(s, h.id, "2026-10-08"))
+        assertEquals(HabitStatus.PENDING, Habits.status(s, h, "2026-10-08"))
+        // 같은 주에는 한 번만
+        assertFalse(Habits.canRest(s, h.id, "2026-10-08"))
+        assertEquals(s, Habits.toggleRest(s, h.id, "2026-10-08"))
+        // 다음 주에는 다시 쓸 수 있다
+        assertTrue(Habits.canRest(s, h.id, "2026-10-12"))
+        // 쉬는 날을 했음으로 바꾸면 쉬어 가기는 지워진다
+        s = Habits.toggle(s, h.id, "2026-10-06")
+        assertFalse(Habits.isResting(s, h.id, "2026-10-06"))
+        assertEquals(0, Habits.restsUsed(s, h.id, "2026-10-06"))
+    }
+
+    @Test fun restDayIsNotAMiss() {
+        var (s, h) = habit("2026-10-05")
+        s = Habits.toggle(s, h.id, "2026-10-05")
+        s = Habits.toggleRest(s, h.id, "2026-10-06")
+        assertEquals(HabitStatus.PENDING, Habits.status(s, h, "2026-10-07"))
+        assertEquals(0, Habits.doubleMisses(s, h, "2026-10-08"))
+        assertEquals(100, Habits.rate(s, h, "2026-10-06"))
+    }
+
+    @Test fun statusDistinguishesOneMissFromLapse() {
+        var (s, h) = habit("2026-10-01")
+        s = Habits.toggle(s, h.id, "2026-10-05")
+        assertEquals(HabitStatus.MUST_TODAY, Habits.status(s, h, "2026-10-07"))
+        assertEquals(HabitStatus.LAPSED, Habits.status(s, h, "2026-10-08"))
+        assertEquals(2, Habits.missedRun(s, h, "2026-10-08"))
+        s = Habits.toggle(s, h.id, "2026-10-08")
+        assertTrue(Habits.cameBack(s, h, "2026-10-08"))
+        assertFalse(Habits.cameBack(s, h, "2026-10-06"))
+    }
+
+    @Test fun freshStartDays() {
+        assertTrue(Habits.isFreshStart("2026-10-12")) // 월요일
+        assertTrue(Habits.isFreshStart("2026-11-01")) // 1일
+        assertFalse(Habits.isFreshStart("2026-10-09"))
+    }
+
+    @Test fun strengthRisesSlowlyAndDropsGently() {
+        var (s, h) = habit("2026-01-01")
+        var d = "2026-01-01"
+        repeat(66) {
+            s = Habits.toggle(s, h.id, d)
+            d = Dates.plusDays(d, 1)
+        }
+        val day66 = Dates.plusDays("2026-01-01", 65)
+        val after66 = Habits.strength(s, h, day66)
+        assertTrue(after66 in 96..98, "66일 매일 하면 약 97%: $after66")
+        assertTrue(Habits.strength(s, h, "2026-01-07") in 25..35, "일주일이면 약 3할")
+        // 하루 놓치면 조금만 내려간다 (오늘 안 한 것은 아직 반영하지 않음)
+        val miss = Dates.plusDays(day66, 1)
+        val next = Dates.plusDays(day66, 2)
+        assertEquals(after66, Habits.strength(s, h, miss))
+        val dropped = Habits.strength(s, h, next)
+        assertTrue(after66 - dropped in 4..6, "한 번 놓치면 약 5%p: $after66 → $dropped")
+        // 쉬는 날은 그대로
+        s = Habits.toggleRest(s, h.id, miss)
+        assertEquals(after66, Habits.strength(s, h, next))
+    }
+
+    @Test fun firstBlockPlanAppearsInGuide() {
+        val today = "2026-10-09"
+        var s = AppState(settings = Settings(onboarded = true))
+        s = Journal.setTopThree(s, today, listOf("논문 3장"), 1)
+        s = Plans.setFirstBlock(s, today, "09:00")
+        assertEquals("09:00", Plans.firstBlock(s, today))
+        val early = Guide.next(s, at(2026, 10, 9, 8), SEOUL)
+        assertEquals(NextKind.FIRST_BLOCK, early.kind)
+        assertEquals("09:00에 첫 집중을 시작해요", early.title)
+        assertEquals("논문 3장", early.detail)
+        assertEquals("09:00에 시작하기로 했어요", Guide.next(s, at(2026, 10, 9, 10), SEOUL).title)
+        // 잘못된 시각은 지운다
+        s = Plans.setFirstBlock(s, today, "아홉시")
+        assertNull(Plans.firstBlock(s, today))
+    }
+
+    @Test fun planningShowsPastAverage() {
+        val t = at(2026, 10, 8, 9)
+        var s = Focus.start(AppState(), "A", 90, t)
+        s = Focus.finish(s, t + 91 * MIN)
+        assertEquals(91 / 7, Stats.dailyAverageMinutes(s, "2026-10-09", 7, SEOUL))
+        // 오늘 기록은 평균에 넣지 않는다
+        assertNull(Stats.dailyAverageMinutes(s, "2026-10-08", 7, SEOUL))
+    }
+
+    @Test fun oldStateWithoutNewFieldsStillLoads() {
+        val json = """{"version":1,"habits":[],"sessions":[{"id":"a","label":"x","startedAt":0,"endedAt":60000,"plannedMinutes":25,"outcome":"COMPLETED"}]}"""
+        val s = Store.decode(json)
+        assertEquals("", s.sessions.first().nextStep)
+        assertTrue(s.habitRests.isEmpty())
+        assertTrue(s.plans.isEmpty())
+    }
+}

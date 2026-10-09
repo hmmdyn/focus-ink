@@ -119,6 +119,7 @@ class WalkthroughTest {
         tap("집중")
         tap("논문 3장 초안", substring = true)
         type(1, "3장 1절 초안 한 쪽")
+        tap("물 한 잔 마시고 자리로 돌아오기")
         tap("휴대폰을 다른 방에", substring = true)
         shot("09_focus_setup")
         tap("90분 집중 시작하기")
@@ -130,6 +131,8 @@ class WalkthroughTest {
         tap("SNS·영상")
         tap("딴짓하고 싶어요")
         compose.onNodeWithText("10분만 기다려 볼까요?").assertExists()
+        compose.onNodeWithText("시작할 때 정해 둔 대로 해 봐요.").assertExists()
+        compose.onNodeWithText("물 한 잔 마시고 자리로 돌아오기").assertExists()
         shot("12_focus_urge")
         tap("괜찮아졌어요")
         tap("그래도 그만두기")
@@ -138,10 +141,17 @@ class WalkthroughTest {
         compose.onNodeWithText("시작하고 바로 멈췄어요. 딴짓은 1번 했어요.").assertExists()
         tap("몰입했어요")
         type(0, "1절 한 쪽을 끝냈고, 참고문헌 정리가 남았어요")
+        type(1, "참고문헌 정리부터 하기")
         tap("저장하기")
-        compose.onNodeWithText("5").assertExists()
+        compose.onNodeWithText("15").assertExists() // 90분 집중 뒤에는 15분 쉰다
         shot("14_break")
         tap("다음 집중 준비하기")
+
+        // 같은 일을 다시 고르면 지난번에 남긴 "이어서 할 일"이 보인다
+        tap("논문 3장 초안", substring = true)
+        compose.onNodeWithText("지난번에 여기서 멈췄어요").assertExists()
+        compose.onNodeWithText("참고문헌 정리부터 하기").assertExists()
+        shot("14b_focus_resume")
 
         // 5. 기록
         tap("기록")
@@ -166,10 +176,13 @@ class WalkthroughTest {
         tap("마무리하기")
         shot("18_review")
         val fields = compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().size
-        type(fields - 3, "논문 3장 1절 마무리")
-        type(fields - 2, "실험 그래프")
-        type(fields - 1, "운동 20분")
+        type(fields - 4, "논문 3장 1절 마무리")
+        type(fields - 3, "실험 그래프")
+        type(fields - 2, "운동 20분")
+        type(fields - 1, "09:00")
+        shot("18b_review_bottom")
         tap("하루 마무리하기")
+        compose.onNodeWithText("내일은 09:00에 첫 집중을 시작해요", substring = true).assertExists()
         shot("19_review_done")
         tap("닫기")
         shot("20_today_end")

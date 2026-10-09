@@ -18,6 +18,7 @@ import com.dain.focusink.core.EntryStatus
 import com.dain.focusink.core.HabitStatus
 import com.dain.focusink.core.Habits
 import com.dain.focusink.core.Journal
+import com.dain.focusink.core.Plans
 import com.dain.focusink.core.Reviews
 import com.dain.focusink.core.Stats
 
@@ -33,6 +34,8 @@ fun ReviewScreen(state: AppState, now: Long, act: Actions, onClose: () -> Unit) 
     var t3 by rememberSaveable { mutableStateOf("") }
     var done by rememberSaveable { mutableStateOf(false) }
     val tomorrowTop = Journal.topThree(state, tomorrow)
+    var firstAt by rememberSaveable { mutableStateOf(Plans.firstBlock(state, tomorrow).orEmpty()) }
+    val firstAtOk = firstAt.isBlank() || runCatching { java.time.LocalTime.parse(firstAt.trim()) }.isSuccess
 
     if (done) {
         Screen(scroll = false) {
@@ -45,7 +48,11 @@ fun ReviewScreen(state: AppState, now: Long, act: Actions, onClose: () -> Unit) 
             Gap(18.dp)
             T("이제 휴대폰은 침대 밖에서 충전하고, 화면 대신 책이나 일기로 하루를 마무리해요.", Type.body)
             Gap(8.dp)
-            T("못 끝낸 일은 적어 두었으니 내일 아침에 다시 정하면 돼요.", Type.body.copy(color = Muted))
+            T(
+                Plans.firstBlock(state, tomorrow)?.let { "내일은 ${it}에 첫 집중을 시작해요. 못 끝낸 일은 아침에 다시 정하면 돼요." }
+                    ?: "못 끝낸 일은 적어 두었으니 내일 아침에 다시 정하면 돼요.",
+                Type.body.copy(color = Muted),
+            )
             Gap(36.dp)
             InkButton("닫기", onClose, Modifier.fillMaxWidth(), filled = true)
         }
@@ -76,17 +83,23 @@ fun ReviewScreen(state: AppState, now: Long, act: Actions, onClose: () -> Unit) 
             }
         }
 
-        val habits = Habits.active(state).filter { Habits.status(state, it, today) != HabitStatus.DONE }
+        val habits = Habits.active(state).filter {
+            val st = Habits.status(state, it, today)
+            st != HabitStatus.DONE && st != HabitStatus.RESTING
+        }
         if (habits.isNotEmpty()) {
             Section("아직 하지 않은 습관") {
                 habits.forEach { h ->
                     InkRow({ act.update { Habits.toggle(it, h.id, today) } }) { dark ->
                         Square(false)
                         Spacer(Modifier.width(14.dp))
-                        T(h.name + if (h.tiny.isNotBlank()) " · ${h.tiny}" else "", Type.body, color = if (dark) Paper else Ink)
+                        T(h.name + if (h.tiny.isNotBlank()) " · ${h.tiny}" else "", Type.body, color = if (dark) Paper else Ink, modifier = Modifier.weight(1f))
+                    }
+                    if (Habits.canRest(state, h.id, today)) {
+                        InkLink("오늘은 쉬어 가기", { act.update { Habits.toggleRest(it, h.id, today) } }, modifier = Modifier.padding(start = 32.dp), style = Type.caption.copy(color = Ink))
                     }
                 }
-                T("지금 2분만 해도 연속 기록이 이어져요.", Type.caption)
+                T("지금 2분만 해도 이어져요. 할 수 없는 날은 일주일에 한 번 쉬어 가도 연속 기록이 끊기지 않아요.", Type.caption, modifier = Modifier.padding(top = 4.dp))
             }
         }
 
@@ -103,11 +116,20 @@ fun ReviewScreen(state: AppState, now: Long, act: Actions, onClose: () -> Unit) 
             }
         }
 
+        Section("내일 첫 집중은 몇 시에") {
+            InkField(firstAt, { firstAt = it }, "예: 09:00")
+            T(
+                if (firstAtOk) "정해 두면 내일 오늘 쪽 맨 위에 보여 드려요." else "09:00 처럼 적어 주세요.",
+                Type.caption, modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+
         Gap(28.dp)
         InkButton("하루 마무리하기", {
             val n = act.now()
             act.update {
                 var s = Journal.setTopThree(it, tomorrow, listOf(t1, t2, t3).take(3 - tomorrowTop.size), n)
+                if (firstAtOk) s = Plans.setFirstBlock(s, tomorrow, firstAt)
                 s = Reviews.complete(s, today, note, n)
                 s
             }

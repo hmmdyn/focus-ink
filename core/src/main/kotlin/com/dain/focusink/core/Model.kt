@@ -41,6 +41,8 @@ data class ActiveSession(
     val anchorMinutes: Int,
     /** "충동이 왔다"를 누른 시각. 10분 버티기 진행 중이면 non-null. */
     val urgeStartedAt: Long? = null,
+    /** 시작할 때 정한 "딴짓하고 싶어지면 → 이렇게 한다" (실행 의도, Gollwitzer & Sheeran 2006) */
+    val ifThen: String = "",
 )
 
 @Serializable
@@ -57,6 +59,9 @@ data class FocusSession(
     val quality: Int = 0,
     val reflection: String = "",
     val distractions: Int = 0,
+    val ifThen: String = "",
+    /** 다음에 이어서 할 일. 다음 집중을 준비할 때 다시 보여 준다 (Leroy & Glomb 2018) */
+    val nextStep: String = "",
 ) {
     val actualMinutes: Int get() = ((endedAt - startedAt) / 60_000L).toInt().coerceAtLeast(0)
 }
@@ -105,6 +110,14 @@ data class DayReview(
     val completedAt: Long,
 )
 
+/** 하루 마무리에서 정한 다음 날 첫 집중 시각. "몇 시에 무엇을" 까지 정해 두는 실행 의도 */
+@Serializable
+data class DayPlan(
+    val date: String,
+    /** HH:mm */
+    val firstBlockAt: String,
+)
+
 @Serializable
 data class WeeklyTarget(
     /** 그 주 월요일 yyyy-MM-dd */
@@ -142,6 +155,9 @@ data class AppState(
     val habits: List<Habit> = emptyList(),
     /** habitId → 체크한 날짜들 */
     val habitChecks: Map<String, List<String>> = emptyMap(),
+    /** habitId → 쉬어 간 날짜들(주 1회). 연속 기록과 익숙한 정도에 영향이 없다 (Sharif & Shu 의 비상 예비분) */
+    val habitRests: Map<String, List<String>> = emptyMap(),
+    val plans: List<DayPlan> = emptyList(),
     val reviews: List<DayReview> = emptyList(),
     val weeklyTargets: List<WeeklyTarget> = emptyList(),
     val settings: Settings = Settings(),

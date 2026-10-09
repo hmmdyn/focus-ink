@@ -23,7 +23,9 @@ import com.dain.focusink.core.Entry
 import com.dain.focusink.core.EntryKind
 import com.dain.focusink.core.EntryStatus
 import com.dain.focusink.core.Guide
+import com.dain.focusink.core.Habit
 import com.dain.focusink.core.HabitStatus
+import com.dain.focusink.core.Hangul
 import com.dain.focusink.core.Habits
 import com.dain.focusink.core.Journal
 import com.dain.focusink.core.NextKind
@@ -113,18 +115,15 @@ fun TodayScreen(state: AppState, now: Long, act: Actions, open: (Overlay) -> Uni
             Section("습관") {
                 habits.forEach { h ->
                     val done = Habits.isChecked(state, h.id, date)
-                    val st = Habits.status(state, h, today)
+                    val resting = Habits.isResting(state, h.id, date)
                     InkRow({ act.update { s -> Habits.toggle(s, h.id, date) } }) { dark ->
                         val c = if (dark) Paper else Ink
-                        Square(done)
+                        Square(done, rest = resting && !done)
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
                             T(h.name, Type.body, color = c)
-                            if (isToday && st == HabitStatus.MUST_TODAY) {
-                                T("어제 못 했어요. 오늘은 작게라도 해요.", Type.caption, color = c)
-                            } else if (isToday && !done && h.tiny.isNotBlank()) {
-                                T(listOf(h.anchor, h.tiny).filter { it.isNotBlank() }.joinToString(" "), Type.caption, color = if (dark) Paper else Muted)
-                            }
+                            val hint = if (isToday) habitHint(state, h, today) else if (resting) "쉬어 간 날이에요." else null
+                            if (hint != null) T(hint, Type.caption, color = if (dark) Paper else Muted)
                         }
                         val streak = Habits.streak(state, h.id, date)
                         if (streak > 0) T("${streak}일째", Type.caption, color = if (dark) Paper else Muted)
@@ -142,6 +141,21 @@ fun TodayScreen(state: AppState, now: Long, act: Actions, open: (Overlay) -> Uni
             T("이번 주에 줄일 딴짓: ${w.category.label}", Type.caption)
         }
         Gap(20.dp)
+    }
+}
+
+/** 오늘 쪽 습관 한 줄 아래에 붙는 안내. 놓친 날을 탓하지 않고 다음 행동 하나만 말한다. */
+fun habitHint(state: AppState, h: Habit, today: String): String? {
+    val small = h.tiny.ifBlank { null }
+    val how = listOf(h.anchor, h.tiny).filter { it.isNotBlank() }.joinToString(" ").ifBlank { null }
+    return when (Habits.status(state, h, today)) {
+        HabitStatus.DONE -> if (Habits.cameBack(state, h, today)) "다시 돌아왔어요. 이게 제일 중요해요." else null
+        HabitStatus.RESTING -> "오늘은 쉬어 가는 날이에요. 연속 기록은 그대로예요."
+        HabitStatus.MUST_TODAY -> "어제 못 했어요. 오늘은 " + (small?.let { Hangul.josa(it, "이라도", "라도") } ?: "작게라도") + " 해요."
+        HabitStatus.LAPSED ->
+            (if (Habits.isFreshStart(today)) "새로 시작하기 좋은 날이에요. " else "괜찮아요, 다시 하면 돼요. ") +
+                (small?.let { "오늘은 ${Hangul.josa(it, "만", "만")} 해 봐요." } ?: "오늘은 아주 작게 해 봐요.")
+        HabitStatus.PENDING -> how
     }
 }
 
@@ -178,7 +192,7 @@ fun AddEntry(act: Actions, date: String, onClose: (() -> Unit)? = null) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         InkField(text, { text = it }, "할 일을 적어 주세요", Modifier.weight(1f), onDone = { save() })
         Spacer(Modifier.width(10.dp))
-        InkButton("추가", { save() }, height = 46.dp)
+        InkButton("추가", { save() }, height = 48.dp)
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         T("- 로 시작하면 메모, * 로 시작하면 중요한 일이 돼요.", Type.caption, modifier = Modifier.weight(1f))
@@ -225,6 +239,11 @@ fun Top3Screen(state: AppState, act: Actions, onClose: () -> Unit) {
         TopBar("오늘 가장 중요한 일", onBack = onClose)
         Gap(6.dp)
         T(if (full) "세 가지를 모두 골랐어요." else "오늘 꼭 끝내고 싶은 일을 세 가지까지 골라 주세요.", Type.body.copy(color = Muted))
+        // 계획할 때 지난 기록을 함께 보면 지나치게 낙관적인 계획이 줄어든다 (Buehler 외 1994)
+        Stats.dailyAverageMinutes(state, today)?.let { avg ->
+            Gap(8.dp)
+            T("지난 7일 동안 하루 평균 ${Stats.duration(avg)} 집중했어요. 고른 일이 이 시간 안에 들어갈까요?", Type.caption)
+        }
         Gap(10.dp)
         candidates.forEach { e ->
             val on = e.priority
@@ -249,7 +268,7 @@ fun Top3Screen(state: AppState, act: Actions, onClose: () -> Unit) {
                         act.update { Journal.setTopThree(it, today, listOf(newText), act.now()) }
                         newText = ""
                     }
-                }, height = 46.dp)
+                }, height = 48.dp)
             }
         }
         Gap(28.dp)

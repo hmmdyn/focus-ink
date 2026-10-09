@@ -48,8 +48,8 @@ class Actions(private val app: FocusInkApp, private val flash: () -> Unit) {
     fun update(f: (AppState) -> AppState) = app.repo.update(f)
     fun flash() = flash.invoke()
 
-    fun startFocus(label: String, minutes: Int, intention: String, entryId: String?) {
-        update { Focus.start(it, label, minutes, now(), intention, entryId) }
+    fun startFocus(label: String, minutes: Int, intention: String, entryId: String?, ifThen: String = "") {
+        update { Focus.start(it, label, minutes, now(), intention, entryId, ifThen = ifThen) }
         flash()
     }
 

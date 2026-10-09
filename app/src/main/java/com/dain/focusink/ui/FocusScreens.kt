@@ -33,6 +33,13 @@ import com.dain.focusink.core.Phase
 import com.dain.focusink.core.Stats
 import kotlinx.coroutines.delay
 
+/** 딴짓하고 싶어질 때 할 일. 미리 정해 두면(if-then 계획) 유혹이 와도 목표를 지키기 쉽다 (Gollwitzer & Sheeran 2006) */
+private val IF_THEN_PRESETS = listOf(
+    "할 일 목록에 적어 두고 돌아오기",
+    "물 한 잔 마시고 자리로 돌아오기",
+    "숨을 세 번 쉬고 하던 문장부터 다시 읽기",
+)
+
 private val PREP = listOf(
     "휴대폰을 다른 방에 두었어요",
     "필요 없는 창을 닫았어요",
@@ -48,6 +55,9 @@ fun FocusSetupScreen(state: AppState, now: Long, act: Actions) {
     var custom by rememberSaveable { mutableStateOf("") }
     var intention by rememberSaveable { mutableStateOf("") }
     var prep by rememberSaveable { mutableStateOf(listOf<Int>()) }
+    val ifThenOptions = (Focus.recentIfThens(state) + IF_THEN_PRESETS).distinct().take(3)
+    var ifThen by rememberSaveable { mutableStateOf(ifThenOptions.first()) }
+    var ifThenCustom by rememberSaveable { mutableStateOf("") }
 
     val candidates = Journal.forDate(state, today)
         .filter { it.kind == EntryKind.TASK && it.status == EntryStatus.OPEN }
@@ -74,6 +84,19 @@ fun FocusSetupScreen(state: AppState, now: Long, act: Actions) {
             if (it.isNotEmpty()) entryId = null
         }, if (candidates.isEmpty()) "집중할 일을 적어 주세요" else "다른 일을 직접 적기")
 
+        // 지난번에 같은 일을 하다 남긴 "다음에 이어서 할 일"
+        Focus.resumeNote(state, chosen?.id, label)?.let { prev ->
+            Gap(14.dp)
+            Boxed {
+                T("지난번에 여기서 멈췄어요", Type.label)
+                Gap(4.dp)
+                T(prev.nextStep, Type.body)
+                if (intention.isBlank()) {
+                    InkLink("이걸로 시작하기", { intention = prev.nextStep }, style = Type.caption.copy(color = Ink))
+                }
+            }
+        }
+
         Section("얼마나") {
             Gap(4.dp)
             Choice(listOf(90 to "90분", 50 to "50분", 25 to "25분"), minutes, { minutes = it })
@@ -83,9 +106,23 @@ fun FocusSetupScreen(state: AppState, now: Long, act: Actions) {
             InkField(intention, { intention = it }, "예: 3장 1절 초안 한 쪽", singleLine = false)
         }
 
+        Section("딴짓하고 싶어지면") {
+            ifThenOptions.forEach { o ->
+                InkRow({
+                    ifThen = o
+                    ifThenCustom = ""
+                }, minHeight = 48.dp) { dark ->
+                    Square(ifThenCustom.isBlank() && ifThen == o, size = 20.dp)
+                    Spacer(Modifier.width(14.dp))
+                    T(o, Type.body, color = if (dark) Paper else Ink)
+                }
+            }
+            InkField(ifThenCustom, { ifThenCustom = it }, "직접 정하기")
+        }
+
         Section("시작하기 전에") {
             PREP.forEachIndexed { i, text ->
-                InkRow({ prep = if (i in prep) prep - i else prep + i }, minHeight = 46.dp) { dark ->
+                InkRow({ prep = if (i in prep) prep - i else prep + i }, minHeight = 48.dp) { dark ->
                     Square(i in prep, size = 20.dp)
                     Spacer(Modifier.width(14.dp))
                     T(text, Type.body, color = if (dark) Paper else Ink)
@@ -96,7 +133,7 @@ fun FocusSetupScreen(state: AppState, now: Long, act: Actions) {
         Gap(28.dp)
         InkButton(
             if (label.isBlank()) "집중할 일을 골라 주세요" else "${minutes}분 집중 시작하기",
-            { act.startFocus(label, minutes, intention, chosen?.id) },
+            { act.startFocus(label, minutes, intention, chosen?.id, ifThenCustom.ifBlank { ifThen }) },
             Modifier.fillMaxWidth(),
             filled = label.isNotBlank(),
             enabled = label.isNotBlank(),
@@ -191,7 +228,12 @@ fun FocusRunScreen(state: AppState, now: Long, act: Actions, onFinished: (String
                 Boxed {
                     T(if (left > 0) "${left}분만 기다려 볼까요?" else "${s.urgeMinutes}분이 지났어요", Type.title)
                     Gap(4.dp)
-                    T("하고 싶은 마음은 대개 금방 지나가요. 물을 마시거나 몸을 펴 보세요.", Type.body)
+                    if (a.ifThen.isNotBlank()) {
+                        T("시작할 때 정해 둔 대로 해 봐요.", Type.body)
+                        T(a.ifThen, Type.bodyBold)
+                    } else {
+                        T("하고 싶은 마음은 대개 금방 지나가요. 물을 마시거나 몸을 펴 보세요.", Type.body)
+                    }
                     Gap(14.dp)
                     if (!urgeLost) {
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -255,7 +297,7 @@ fun FocusRunScreen(state: AppState, now: Long, act: Actions, onFinished: (String
 fun CategoryGrid(onPick: (DistractionCategory) -> Unit) {
     DistractionCategory.entries.chunked(2).forEach { row ->
         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            row.forEach { c -> InkButton(c.label, { onPick(c) }, Modifier.weight(1f), height = 46.dp, textSize = 16.sp) }
+            row.forEach { c -> InkButton(c.label, { onPick(c) }, Modifier.weight(1f), height = 48.dp, textSize = 16.sp) }
             if (row.size == 1) Spacer(Modifier.weight(1f))
         }
     }
@@ -271,6 +313,7 @@ fun ReflectScreen(state: AppState, now: Long, sessionId: String, act: Actions, o
     var saved by rememberSaveable { mutableStateOf(false) }
     var quality by rememberSaveable { mutableIntStateOf(x.quality.takeIf { it > 0 } ?: 2) }
     var note by rememberSaveable { mutableStateOf(x.reflection) }
+    var nextStep by rememberSaveable { mutableStateOf(x.nextStep) }
     val linked = x.entryId?.let { id -> state.entries.firstOrNull { it.id == id } }
     var markDone by rememberSaveable { mutableStateOf(linked != null && linked.status == EntryStatus.OPEN && x.outcome == Outcome.COMPLETED) }
 
@@ -290,6 +333,12 @@ fun ReflectScreen(state: AppState, now: Long, sessionId: String, act: Actions, o
             Section("한 줄 메모") {
                 InkField(note, { note = it }, "끝낸 것이나 막힌 것을 적어 주세요", singleLine = false)
             }
+            if (!markDone) {
+                Section("다음에 이어서 할 일") {
+                    InkField(nextStep, { nextStep = it }, "예: 2절 첫 문단부터 쓰기", singleLine = false)
+                    T("다음에 같은 일로 집중할 때 다시 보여 드려요.", Type.caption, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
             if (linked != null && linked.status == EntryStatus.OPEN) {
                 Gap(10.dp)
                 InkRow({ markDone = !markDone }) { dark ->
@@ -301,7 +350,7 @@ fun ReflectScreen(state: AppState, now: Long, sessionId: String, act: Actions, o
             Gap(28.dp)
             InkButton("저장하기", {
                 act.update {
-                    var s = Focus.reflect(it, x.id, quality, note)
+                    var s = Focus.reflect(it, x.id, quality, note, if (markDone) "" else nextStep)
                     if (markDone && linked != null) s = Journal.markDone(s, linked.id, act.now())
                     s
                 }
@@ -309,7 +358,8 @@ fun ReflectScreen(state: AppState, now: Long, sessionId: String, act: Actions, o
             }, Modifier.fillMaxWidth(), filled = true, height = 56.dp)
         }
     } else {
-        val breakEnd = x.endedAt + state.settings.breakMinutes * 60_000L
+        val breakMin = Focus.breakMinutes(x.plannedMinutes, state.settings.breakMinutes)
+        val breakEnd = x.endedAt + breakMin * 60_000L
         val left = ((breakEnd - maxOf(now, x.endedAt) + 59_999) / 60_000).coerceAtLeast(0)
         Screen(scroll = false) {
             T(if (left > 0) "쉬는 시간" else "다 쉬었어요", Type.label)

@@ -40,9 +40,18 @@ object Guide {
         }
         if (sessionsToday == 0) {
             val first = Journal.topThree(state, today).firstOrNull { it.status == EntryStatus.OPEN }
+            val planned = Plans.firstBlock(state, today)
+            if (planned != null) {
+                val late = time.isAfter(Dates.parseTime(planned))
+                return NextAction(
+                    NextKind.FIRST_BLOCK,
+                    if (late) "${planned}에 시작하기로 했어요" else "${planned}에 첫 집중을 시작해요",
+                    first?.text ?: "가장 어려운 일부터 시작해요.",
+                )
+            }
             return NextAction(NextKind.FIRST_BLOCK, "첫 집중을 시작할 차례예요", first?.text ?: "가장 어려운 일부터 시작해요.")
         }
-        return NextAction(NextKind.NEXT_BLOCK, "다음 집중을 시작해 볼까요?", "${s.breakMinutes}분 쉬었다면 이어서 시작해요.")
+        return NextAction(NextKind.NEXT_BLOCK, "다음 집중을 시작해 볼까요?", "충분히 쉬었다면 이어서 시작해요.")
     }
 
     fun isManagerDay(state: AppState, date: String): Boolean = Dates.dayOfWeek(date) in state.settings.managerDays

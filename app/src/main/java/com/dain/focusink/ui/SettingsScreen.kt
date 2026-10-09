@@ -49,8 +49,9 @@ fun SettingsScreen(state: AppState, act: Actions, onClose: () -> Unit) {
             Choice(listOf(90 to "90분", 50 to "50분", 25 to "25분"), s.deepMinutes, { v -> set { it.copy(deepMinutes = v) } })
             SettingLabel("중간에 멈출 수 없는 처음 시간")
             Choice(listOf(10 to "10분", 15 to "15분", 20 to "20분"), s.anchorMinutes, { v -> set { it.copy(anchorMinutes = v) } })
-            SettingLabel("쉬는 시간")
+            SettingLabel("가장 짧은 쉬는 시간")
             Choice(listOf(5 to "5분", 10 to "10분", 15 to "15분"), s.breakMinutes, { v -> set { it.copy(breakMinutes = v) } })
+            T("오래 집중한 뒤에는 더 쉬어요. 90분 뒤에는 15분, 50분 뒤에는 8분이에요.", Type.caption, modifier = Modifier.padding(top = 6.dp))
             SettingLabel("딴짓하고 싶을 때 기다릴 시간")
             Choice(listOf(10 to "10분", 15 to "15분"), s.urgeMinutes, { v -> set { it.copy(urgeMinutes = v) } })
         }

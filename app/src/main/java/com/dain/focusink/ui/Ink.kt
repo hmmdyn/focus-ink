@@ -154,7 +154,7 @@ fun InkLink(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, st
     val (source, pressed) = rememberPress()
     Box(
         modifier
-            .heightIn(min = 44.dp)
+            .heightIn(min = 48.dp)
             .background(if (pressed) Ink else Color.Transparent)
             .inkClick(source, onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 6.dp),
@@ -212,10 +212,16 @@ fun Boxed(modifier: Modifier = Modifier, inverted: Boolean = false, content: @Co
     )
 }
 
-/** 체크 칸: 채움 = 함, 빈칸 = 안 함, 작은 점 = 해당 없음 */
+/** 체크 칸: 채움 = 함, 빈칸 = 안 함, 가로줄 = 쉬어 간 날, 작은 점 = 해당 없음 */
 @Composable
-fun Square(state: Boolean?, size: Dp = 22.dp, today: Boolean = false) {
+fun Square(state: Boolean?, size: Dp = 22.dp, today: Boolean = false, rest: Boolean = false) {
     val shape = RoundedCornerShape(3.dp)
+    if (rest) {
+        Box(Modifier.size(size).clip(shape).border(1.5.dp, Faint, shape), contentAlignment = Alignment.Center) {
+            Box(Modifier.width(size * 0.5f).height(2.dp).background(Ink))
+        }
+        return
+    }
     when (state) {
         true -> Box(Modifier.size(size).clip(shape).background(Ink))
         false -> Box(Modifier.size(size).clip(shape).border(if (today) 2.5.dp else 1.5.dp, Ink, shape))

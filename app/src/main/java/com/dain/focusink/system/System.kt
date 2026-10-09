@@ -129,7 +129,7 @@ class AlarmReceiver : BroadcastReceiver() {
                     Notifications.notify(
                         ctx, Notifications.ID_SESSION, Notifications.CH_SESSION,
                         "${a.plannedMinutes}분 집중을 마쳤어요",
-                        "${a.label} 집중이 끝났어요. 짧게 돌아보고 ${s.settings.breakMinutes}분 쉬어요.",
+                        "${a.label} 집중이 끝났어요. 짧게 돌아보고 ${Focus.breakMinutes(a.plannedMinutes, s.settings.breakMinutes)}분 쉬어요.",
                     )
                 }
             }

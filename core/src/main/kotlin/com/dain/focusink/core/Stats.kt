@@ -53,6 +53,16 @@ object Stats {
         return if (q.isEmpty()) null else q.average()
     }
 
+    /**
+     * 오늘을 빼고 지난 n일 동안 하루 평균 집중한 분. 기록이 있는 날이 하나도 없으면 null.
+     * 계획을 세울 때 지난 기록을 함께 보여 주면 지나치게 낙관적인 계획이 줄어든다 (Buehler, Griffin & Ross 1994).
+     */
+    fun dailyAverageMinutes(state: AppState, today: String, n: Int = 7, zone: ZoneId = ZoneId.systemDefault()): Int? {
+        val days = (1..n).map { day(state, Dates.plusDays(today, -it.toLong()), zone) }
+        if (days.none { it.deepMinutes > 0 }) return null
+        return days.sumOf { it.deepMinutes } / n
+    }
+
     fun hasReview(state: AppState, date: String): Boolean = state.reviews.any { it.date == date }
 
     /** 90 → "1시간 30분", 45 → "45분", 120 → "2시간" */
@@ -69,6 +79,18 @@ object Stats {
     fun summaryLine(stat: DayStat): String =
         "집중 ${duration(stat.deepMinutes)} · 딴짓 ${stat.distractions}번" +
             (if (stat.urgesResisted > 0) " · 참음 ${stat.urgesResisted}번" else "")
+}
+
+object Plans {
+    /** 그날 첫 집중 시각을 정한다. 빈 값이나 잘못된 시각이면 지운다. */
+    fun setFirstBlock(state: AppState, date: String, hhmm: String): AppState {
+        val rest = state.plans.filterNot { it.date == date }
+        val t = hhmm.trim()
+        val ok = runCatching { java.time.LocalTime.parse(t) }.isSuccess
+        return state.copy(plans = if (ok) rest + DayPlan(date, t) else rest)
+    }
+
+    fun firstBlock(state: AppState, date: String): String? = state.plans.firstOrNull { it.date == date }?.firstBlockAt
 }
 
 object Reviews {

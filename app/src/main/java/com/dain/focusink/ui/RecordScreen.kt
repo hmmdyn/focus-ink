@@ -111,17 +111,31 @@ private fun HabitBlock(state: AppState, h: Habit, today: String, act: Actions) {
         // 최근 4주: 7칸씩 4줄, 오늘은 굵은 테두리
         Habits.grid(state, h, today, 28).chunked(7).forEach { week ->
             Row(Modifier.padding(vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                week.forEach { (d, v) -> Square(v, size = 26.dp, today = d == today) }
+                week.forEach { (d, v) -> Square(v, size = 26.dp, today = d == today, rest = v == false && Habits.isResting(state, h.id, d)) }
             }
         }
-        Gap(6.dp)
+        Gap(10.dp)
+        // 익숙한 정도: 하루 빠져도 조금만 내려가고, 매일 하면 두 달쯤 뒤 거의 다 찬다 (Loop 방식, Lally 외 2010)
+        val strength = Habits.strength(state, h, today)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            T("익숙해진 정도", Type.body, modifier = Modifier.width(120.dp))
+            Bar(strength / 100f, Modifier.weight(1f), height = 8.dp)
+            T("$strength%", Type.bodyBold, modifier = Modifier.width(56.dp), align = TextAlign.End)
+        }
         val misses = Habits.doubleMisses(state, h, today)
         T(
-            "최근 30일 중 ${Habits.rate(state, h, today)}%를 지켰어요" + if (misses > 0) ". 두 번 연속 빠진 적이 ${misses}번 있어요." else ".",
-            Type.caption,
+            "매일 하면 두 달쯤 걸려요. 하루 빠져도 조금만 내려가요." + if (misses > 0) " 두 번 연속 빠진 적이 ${misses}번 있어요." else "",
+            Type.caption, modifier = Modifier.padding(top = 4.dp),
         )
         if (menu) {
             Gap(6.dp)
+            if (Habits.canRest(state, h.id, today)) {
+                InkButton("오늘은 쉬어 가기", { act.update { Habits.toggleRest(it, h.id, today) }; menu = false }, Modifier.fillMaxWidth())
+                Gap(8.dp)
+            } else if (Habits.isResting(state, h.id, today)) {
+                InkButton("쉬어 가기 취소하기", { act.update { Habits.toggleRest(it, h.id, today) }; menu = false }, Modifier.fillMaxWidth())
+                Gap(8.dp)
+            }
             ConfirmButton("이 습관 그만두기", "한 번 더 누르면 보관해요", { act.update { Habits.archive(it, h.id) } }, Modifier.fillMaxWidth())
         }
     }
