@@ -125,7 +125,7 @@ class WalkthroughTest {
         shot("09_focus_setup")
         tap("90분 집중 시작하기")
         compose.onNodeWithText("90").assertExists()
-        compose.onNodeWithText("15분 뒤부터 멈출 수 있어요", substring = true).assertExists()
+        compose.onNodeWithText("15분만 더 버텨 봐요", substring = true).assertExists()
         shot("10_focus_running")
         tap("딴짓했어요")
         shot("11_focus_pick")
