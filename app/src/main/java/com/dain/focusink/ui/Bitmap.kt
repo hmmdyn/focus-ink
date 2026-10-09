@@ -322,11 +322,12 @@ private fun DrawScope.drawPrint(layers: Layers, progress: Float, cellPx: Float, 
     val ox = (cols - MAP_W * sc) / 2f
     val oy = rows - MAP_H * sc
     if (background) {
-        for (j in 0 until rows step 3) {
-            var i = if ((j / 3) % 2 == 1) 1 else 0
+        // 종이 결: 성긴 점. 밑그림 점(2칸 간격)과 섞이지 않게 4칸 간격으로 둔다
+        for (j in 0 until rows step 4) {
+            var i = if ((j / 4) % 2 == 1) 2 else 0
             while (i < cols) {
                 drawRect(Ink, Offset(i * cell + cell / 2 - 1f, j * cell + cell / 2 - 1f), Size(2f, 2f))
-                i += 3
+                i += 4
             }
         }
     }
