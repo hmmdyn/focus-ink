@@ -20,6 +20,7 @@ object Focus {
         entryId: String? = null,
         anchorMinutes: Int = state.settings.anchorMinutes,
         ifThen: String = "",
+        preset: String = "",
     ): AppState {
         if (state.active != null) return state
         val planned = minutes.coerceIn(5, 240)
@@ -32,6 +33,7 @@ object Focus {
             plannedMinutes = planned,
             anchorMinutes = anchorMinutes.coerceIn(0, planned),
             ifThen = ifThen.trim(),
+            preset = preset,
         )
         return state.copy(active = active)
     }
@@ -79,9 +81,10 @@ object Focus {
         reflection: String = "",
     ): AppState {
         val a = state.active ?: return state
-        val resolved = outcome ?: when (phase(a, now)) {
+        val flow = Preset.of(a.preset).isFlow && a.preset.isNotEmpty()
+        val resolved = if (flow && outcome == Outcome.ENDED_EARLY) Outcome.COMPLETED else outcome ?: when (phase(a, now)) {
             Phase.OVERTIME -> Outcome.COMPLETED
-            Phase.DEEP -> Outcome.ENDED_EARLY
+            Phase.DEEP -> if (flow) Outcome.COMPLETED else Outcome.ENDED_EARLY
             Phase.ANCHOR -> Outcome.ABANDONED
         }
         val session = FocusSession(
@@ -97,6 +100,7 @@ object Focus {
             reflection = reflection.trim(),
             distractions = sessionDistractions(state, a.id).count { !it.resisted },
             ifThen = a.ifThen,
+            preset = a.preset,
         )
         return state.copy(active = null, sessions = state.sessions + session)
     }

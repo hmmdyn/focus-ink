@@ -376,3 +376,73 @@ class EvidenceFeaturesTest {
         assertTrue(s.plans.isEmpty())
     }
 }
+
+class PresetTest {
+    @Test fun presetsResolveMinutesAndAnchor() {
+        assertEquals(25, Preset.plannedMinutes(Preset.POMODORO, 40))
+        assertEquals(40, Preset.plannedMinutes(Preset.CUSTOM, 40))
+        assertEquals(180, Preset.plannedMinutes(Preset.CUSTOM, 999))
+        assertEquals(Preset.FLOW_CAP, Preset.plannedMinutes(Preset.FLOW, 40))
+        assertEquals(Preset.DEEP90, Preset.of("unknown"))
+        // 15분 스프린트에서 처음 15분을 못 멈추면 끝까지 못 멈춘다 → 절반까지만
+        assertEquals(7, Preset.anchorMinutes(15, 15))
+        assertEquals(15, Preset.anchorMinutes(90, 15))
+    }
+
+    @Test fun flowEndsAsCompletedAfterAnchor() {
+        val t0 = at(2026, 10, 9, 9)
+        var s = Focus.start(AppState(), "읽기", Preset.FLOW_CAP, t0, anchorMinutes = 15, preset = Preset.FLOW.id)
+        s = Focus.finish(s, t0 + 40 * MIN, Outcome.ENDED_EARLY)
+        assertEquals(Outcome.COMPLETED, s.sessions.single().outcome)
+        assertEquals(Preset.FLOW.id, s.sessions.single().preset)
+    }
+
+    @Test fun pomodoroLongBreakEveryFourth() {
+        var s = AppState()
+        var t = at(2026, 10, 9, 9)
+        repeat(4) {
+            s = Focus.start(s, "과제", 25, t, anchorMinutes = 10, preset = Preset.POMODORO.id)
+            s = Focus.finish(s, t + 25 * MIN, Outcome.COMPLETED)
+            t += 30 * MIN
+        }
+        assertEquals(5, Breaks.minutes(s, s.sessions[2], 5, SEOUL))
+        assertEquals(15, Breaks.minutes(s, s.sessions[3], 5, SEOUL))
+    }
+}
+
+class PrintAndScoreTest {
+    @Test fun passesFollowQuarterOfGoal() {
+        assertEquals(0, Print.passes(0, 120))
+        assertEquals(1, Print.passes(30, 120))
+        assertEquals(2, Print.passes(75, 120))
+        assertEquals(4, Print.passes(500, 120))
+        assertEquals(15, Print.minutesToNextPass(75, 120))
+        assertEquals(30, Print.minutesToNextPass(0, 120))
+        assertEquals(0, Print.minutesToNextPass(120, 120))
+    }
+
+    @Test fun scoreCapsVolumeAndRewardsQuality() {
+        val t0 = at(2026, 10, 9, 9)
+        var s = AppState()
+        s = Focus.start(s, "a", 90, t0, anchorMinutes = 15)
+        s = Focus.finish(s, t0 + 90 * MIN, Outcome.COMPLETED)
+        s = Focus.reflect(s, s.sessions[0].id, 3, "")
+        // 90/120 → 45, 집중도 3 → 25, 딴짓 0 → 15
+        assertEquals(85, Score.day(s, "2026-10-09", SEOUL))
+        assertEquals(0, Score.day(s, "2026-10-10", SEOUL))
+    }
+
+    @Test fun challengeMarksPassedAndMissedDays() {
+        var s = Challenge.start(AppState(), "2026-10-07")
+        val t = at(2026, 10, 7, 9)
+        s = Focus.start(s, "a", 90, t, anchorMinutes = 15)
+        s = Focus.finish(s, t + 70 * MIN, Outcome.ENDED_EARLY)
+        val days = Challenge.days(s, "2026-10-09", SEOUL)
+        assertEquals(21, days.size)
+        assertEquals(Challenge.Day.PASSED, days[0].second)
+        assertEquals(Challenge.Day.MISSED, days[1].second)
+        assertEquals(Challenge.Day.TODAY, days[2].second)
+        assertEquals(Challenge.Day.FUTURE, days[3].second)
+        assertEquals(1, Challenge.passedCount(days))
+    }
+}

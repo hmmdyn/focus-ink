@@ -1,5 +1,12 @@
 package com.dain.focusink.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.dain.focusink.core.*
+
 import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.BackHandler
@@ -28,15 +35,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.dain.focusink.FocusInkApp
 import com.dain.focusink.core.AppState
 import com.dain.focusink.core.Dates
 import com.dain.focusink.core.Focus
 import com.dain.focusink.core.Outcome
 
-enum class Tab(val label: String) { TODAY("오늘"), FOCUS("집중"), RECORD("기록") }
+enum class Tab(val label: String, val icon: String) { TODAY("오늘", "today"), FOCUS("타이머", "timer"), RECORD("기록", "record"), HABITS("습관", "habits") }
 
 enum class Overlay { NONE, SETTINGS, REVIEW, MIGRATE, TOP3 }
 
@@ -48,8 +53,12 @@ class Actions(private val app: FocusInkApp, private val flash: () -> Unit) {
     fun update(f: (AppState) -> AppState) = app.repo.update(f)
     fun flash() = flash.invoke()
 
-    fun startFocus(label: String, minutes: Int, intention: String, entryId: String?, ifThen: String = "") {
-        update { Focus.start(it, label, minutes, now(), intention, entryId, ifThen = ifThen) }
+    fun startFocus(label: String, minutes: Int, intention: String, entryId: String?, ifThen: String = "", preset: Preset = Preset.of(state.settings.lastPreset)) {
+        val anchor = Preset.anchorMinutes(minutes, state.settings.anchorMinutes)
+        update {
+            val s = it.copy(settings = it.settings.copy(lastPreset = preset.id))
+            Focus.start(s, label, minutes, now(), intention, entryId, anchorMinutes = anchor, ifThen = ifThen, preset = preset.id)
+        }
         flash()
     }
 
@@ -118,6 +127,7 @@ fun Root(app: FocusInkApp, onRequestNotifications: () -> Unit) {
                         Tab.TODAY -> TodayScreen(state, now, act, open = { overlay = it }, goTab = { tab = it })
                         Tab.FOCUS -> FocusSetupScreen(state, now, act)
                         Tab.RECORD -> RecordScreen(state, now, act)
+                        Tab.HABITS -> HabitsScreen(state, now, act)
                     }
                 }
                 TabBar(tab) { tab = it }
@@ -127,32 +137,28 @@ fun Root(app: FocusInkApp, onRequestNotifications: () -> Unit) {
     }
 }
 
-/** 아래 탭: 글자만, 고른 탭은 굵게 + 위에 굵은 선 */
+/** 아래 탭: 픽셀 아이콘 + 글자. 고른 탭은 흑백을 뒤집는다 */
 @Composable
 private fun TabBar(selected: Tab, onSelect: (Tab) -> Unit) {
     Column(Modifier.fillMaxWidth().background(Paper)) {
-        Rule()
+        Rule(strong = true)
         Row(Modifier.fillMaxWidth()) {
             Tab.entries.forEach { t ->
                 val (source, pressed) = rememberPress()
-                val on = t == selected
+                val dark = (t == selected) xor pressed
+                val c = if (dark) Paper else Ink
                 Column(
                     Modifier
                         .weight(1f)
-                        .heightIn(min = 62.dp)
-                        .background(if (pressed) Ink else Paper)
-                        .inkClick(source) { onSelect(t) },
+                        .heightIn(min = 64.dp)
+                        .background(if (dark) Ink else Paper)
+                        .inkClick(source) { onSelect(t) }
+                        .padding(top = 10.dp, bottom = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Box(Modifier.width(44.dp).height(3.dp).background(if (on && !pressed) Ink else Paper))
-                    Box(Modifier.heightIn(min = 56.dp), contentAlignment = Alignment.Center) {
-                        Text(
-                            t.label,
-                            style = Type.body.copy(fontSize = 18.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal),
-                            color = if (pressed) Paper else if (on) Ink else Muted,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
+                    PixelIcon(t.icon, pixel = 3.dp, color = c)
+                    Spacer(Modifier.height(5.dp))
+                    Text(t.label, style = Type.small, color = c, textAlign = TextAlign.Center)
                 }
             }
         }

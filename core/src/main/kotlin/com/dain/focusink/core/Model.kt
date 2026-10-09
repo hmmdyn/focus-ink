@@ -43,6 +43,8 @@ data class ActiveSession(
     val urgeStartedAt: Long? = null,
     /** 시작할 때 정한 "딴짓하고 싶어지면 → 이렇게 한다" (실행 의도, Gollwitzer & Sheeran 2006) */
     val ifThen: String = "",
+    /** 고른 타이머 모드 id (Preset.id). 비어 있으면 예전 기록 */
+    val preset: String = "",
 )
 
 @Serializable
@@ -62,6 +64,7 @@ data class FocusSession(
     val ifThen: String = "",
     /** 다음에 이어서 할 일. 다음 집중을 준비할 때 다시 보여 준다 (Leroy & Glomb 2018) */
     val nextStep: String = "",
+    val preset: String = "",
 ) {
     val actualMinutes: Int get() = ((endedAt - startedAt) / 60_000L).toInt().coerceAtLeast(0)
 }
@@ -143,6 +146,16 @@ data class Settings(
     val lastSyncId: String? = null,
     val remindersEnabled: Boolean = true,
     val onboarded: Boolean = false,
+    /** 하루 목표 집중 시간. 25%를 채울 때마다 오늘의 판화가 한 판씩 찍힌다 */
+    val dailyGoalMinutes: Int = 120,
+    /** 마지막으로 고른 타이머 모드 */
+    val lastPreset: String = "deep90",
+    /** 직접 설정 모드의 집중 시간 */
+    val customMinutes: Int = 40,
+    /** 진행 중인 챌린지(시작한 날 yyyy-MM-dd). 없으면 null */
+    val challengeStart: String? = null,
+    val challengeDays: Int = 21,
+    val challengeMinutes: Int = 60,
 )
 
 @Serializable

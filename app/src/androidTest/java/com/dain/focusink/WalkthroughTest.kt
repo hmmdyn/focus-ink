@@ -116,15 +116,18 @@ class WalkthroughTest {
         shot("08_migrate_done")
         tap("닫기")
 
-        // 4. 집중
-        tap("집중")
+        // 4. 집중 (타이머 탭)
+        tap("타이머")
         tap("논문 3장 초안", substring = true)
         type(1, "3장 1절 초안 한 쪽")
         tap("물 한 잔 마시고 자리로 돌아오기")
         tap("휴대폰을 다른 방에", substring = true)
         shot("09_focus_setup")
+        tap("포모도로")
+        shot("09b_focus_pomodoro")
+        tap("몰입")
         tap("90분 집중 시작하기")
-        compose.onNodeWithText("90").assertExists()
+        compose.onNodeWithText("분 남았어요", substring = true).assertExists()
         compose.onNodeWithText("15분만 더 버텨 봐요", substring = true).assertExists()
         shot("10_focus_running")
         tap("딴짓했어요")
@@ -144,7 +147,7 @@ class WalkthroughTest {
         type(0, "1절 한 쪽을 끝냈고, 참고문헌 정리가 남았어요")
         type(1, "참고문헌 정리부터 하기")
         tap("저장하기")
-        compose.onNodeWithText("15").assertExists() // 90분 집중 뒤에는 15분 쉰다
+        compose.onNodeWithText("긴 쉬는 시간").assertExists() // 90분 집중 뒤에는 15분 쉰다
         shot("14_break")
         tap("다음 집중 준비하기")
 
@@ -158,6 +161,16 @@ class WalkthroughTest {
         tap("기록")
         assert(compose.onAllNodesWithText("SNS·영상").fetchSemanticsNodes().isNotEmpty()) // 집중 중 기록한 딴짓이 집계됨
         shot("15_record")
+        tap("월")
+        shot("15b_record_month")
+        tap("일")
+        shot("15c_record_day")
+
+        // 5-1. 습관 탭: 챌린지 시작
+        tap("습관")
+        tap("챌린지 시작하기")
+        compose.onNodeWithText("CHALLENGE", substring = true).assertExists()
+        shot("15d_habits")
 
         // 6. 오늘 쪽에서 습관 체크
         tap("오늘")

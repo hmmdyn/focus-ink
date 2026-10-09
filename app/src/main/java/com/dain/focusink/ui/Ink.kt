@@ -1,5 +1,14 @@
 package com.dain.focusink.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.dain.focusink.core.*
+import androidx.compose.runtime.saveable.rememberSaveable
+
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,7 +29,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -38,11 +46,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -51,27 +64,94 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.dain.focusink.R
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 /*
- * e-ink 디자인 규칙 (Kindle, reMarkable, Light Phone 의 공통점을 따름)
- * - 흑백과 회색 한 단계만 쓴다. 그림자, 색, 애니메이션은 쓰지 않는다.
- * - 구분은 1dp 실선으로 하고, 상자는 꼭 필요한 곳에만 둔다.
- * - 제목과 숫자는 명조, 목록과 버튼은 고딕으로 쓴다.
- * - 버튼은 글자가 중심이 되게 만든다. 화면마다 검은 버튼은 하나만 둔다.
+ * e-ink 디자인 규칙 (실크스크린 · 비트맵 · 하프톤)
+ * - 검정과 흰색 두 가지만 쓴다. 회색 면 대신 망점·디더링 패턴과 점선으로 구분한다.
+ *   16단계 그레이 e-ink 에서도 회색은 뿌옇게 번지지만, 패턴은 경계가 그대로 남는다.
+ * - 글꼴은 앱에 들어 있는 갈무리(OFL)만 쓴다. 기기에 한글 글꼴이 없어도 똑같이 보인다.
+ *   픽셀 글꼴이라 원래 픽셀 크기(갈무리11 = 12px, 갈무리14 = 15px)의 정수배로만 키운다.
+ * - 큰 숫자는 글꼴 대신 5×7 점 행렬로 직접 찍는다.
+ * - 모서리는 둥글리지 않는다. 그림자와 애니메이션은 쓰지 않는다.
+ * - 버튼은 글자가 중심이 되게 만들고, 화면마다 검은 버튼은 하나만 둔다.
  * - 누르는 동안에는 흑백을 반전해서 눌렸다는 것을 보여 준다.
  */
-val Ink = Color(0xFF111111)
+val Ink = Color(0xFF000000)
 val Paper = Color(0xFFFFFFFF)
-val Muted = Color(0xFF5A5A5A)
-val Faint = Color(0xFFBDBDBD)
 
-private val Shape = RoundedCornerShape(6.dp)
+private val G11 = FontFamily(
+    Font(R.font.galmuri11, FontWeight.Normal),
+    Font(R.font.galmuri11_bold, FontWeight.Bold),
+)
+private val G14 = FontFamily(Font(R.font.galmuri14, FontWeight.Normal))
+
+/**
+ * 글자 크기. InkTheme 이 화면 밀도를 보고 한 번 정한다.
+ * 목표 크기(dp)에 가장 가까우면서 글꼴 격자(12px, 15px)의 정수배인 픽셀 크기를 고른다.
+ */
+object Type {
+    var hero = TextStyle.Default
+        private set
+    var display = TextStyle.Default
+        private set
+    var title = TextStyle.Default
+        private set
+    var lead = TextStyle.Default
+        private set
+    var heading = TextStyle.Default
+        private set
+    var body = TextStyle.Default
+        private set
+    var bodyBold = TextStyle.Default
+        private set
+    var caption = TextStyle.Default
+        private set
+    var label = TextStyle.Default
+        private set
+    var small = TextStyle.Default
+        private set
+    private var key = -1f
+
+    fun init(density: Float, fontScale: Float) {
+        val k = density * 1000 + fontScale
+        if (k == key) return
+        key = k
+        val scale = density * fontScale
+        fun size(grid: Int, dp: Float): TextUnit {
+            val n = (dp * scale / grid).roundToInt().coerceAtLeast(1)
+            return (n * grid / scale).sp
+        }
+        fun style(family: FontFamily, grid: Int, dp: Float, bold: Boolean = false, line: Float = 1.5f, spacing: Float = 0f): TextStyle {
+            val s = size(grid, dp)
+            return TextStyle(
+                fontFamily = family,
+                fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+                fontSize = s,
+                lineHeight = (s.value * line).sp,
+                letterSpacing = spacing.sp,
+                color = Ink,
+            )
+        }
+        hero = style(G11, 12, 72f, bold = true, line = 1.1f)
+        display = style(G11, 12, 28f, bold = true, line = 1.35f)
+        title = style(G11, 12, 22f, bold = true, line = 1.4f)
+        lead = style(G11, 12, 18f)
+        heading = style(G11, 12, 18f, bold = true)
+        body = style(G11, 12, 18f)
+        bodyBold = style(G11, 12, 18f, bold = true)
+        caption = style(G14, 15, 15f)
+        label = style(G11, 12, 12f, bold = true, spacing = 1f)
+        small = style(G11, 12, 12f)
+    }
+}
 
 @Composable
 fun InkTheme(content: @Composable () -> Unit) {
+    val d = LocalDensity.current
+    Type.init(d.density, d.fontScale)
     MaterialTheme(
         colorScheme = lightColorScheme(
             primary = Ink, onPrimary = Paper, background = Paper, onBackground = Ink,
@@ -79,19 +159,6 @@ fun InkTheme(content: @Composable () -> Unit) {
         ),
         content = content,
     )
-}
-
-object Type {
-    private val serif = FontFamily.Serif
-    val hero = TextStyle(fontFamily = serif, fontSize = 104.sp, fontWeight = FontWeight.Bold, lineHeight = 108.sp, color = Ink)
-    val display = TextStyle(fontFamily = serif, fontSize = 30.sp, fontWeight = FontWeight.Bold, lineHeight = 38.sp, color = Ink)
-    val title = TextStyle(fontFamily = serif, fontSize = 24.sp, fontWeight = FontWeight.Bold, lineHeight = 32.sp, color = Ink)
-    val lead = TextStyle(fontFamily = serif, fontSize = 20.sp, lineHeight = 30.sp, color = Ink)
-    val heading = TextStyle(fontSize = 19.sp, fontWeight = FontWeight.Bold, lineHeight = 26.sp, color = Ink)
-    val body = TextStyle(fontSize = 18.sp, lineHeight = 27.sp, color = Ink)
-    val bodyBold = body.copy(fontWeight = FontWeight.Bold)
-    val caption = TextStyle(fontSize = 15.sp, lineHeight = 22.sp, color = Muted)
-    val label = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, color = Muted)
 }
 
 @Composable
@@ -103,6 +170,16 @@ fun rememberPress(): Pair<MutableInteractionSource, Boolean> {
 
 fun Modifier.inkClick(source: MutableInteractionSource, enabled: Boolean = true, onClick: () -> Unit): Modifier =
     this.clickable(interactionSource = source, indication = null, enabled = enabled, onClick = onClick)
+
+/** 점선 테두리. 아직 고를 수 없거나 비어 있는 것을 회색 대신 점선으로 보여 준다 */
+fun Modifier.dashedBorder(width: Dp = 1.5.dp, dash: Dp = 4.dp): Modifier = drawBehind {
+    val w = width.toPx()
+    val d = dash.toPx()
+    drawRect(
+        Ink, topLeft = Offset(w / 2, w / 2), size = androidx.compose.ui.geometry.Size(size.width - w, size.height - w),
+        style = Stroke(w, pathEffect = PathEffect.dashPathEffect(floatArrayOf(d, d))),
+    )
+}
 
 @Composable
 fun T(text: String, style: TextStyle = Type.body, modifier: Modifier = Modifier, color: Color = Color.Unspecified, maxLines: Int = Int.MAX_VALUE, align: TextAlign? = null, strike: Boolean = false) {
@@ -117,7 +194,7 @@ fun T(text: String, style: TextStyle = Type.body, modifier: Modifier = Modifier,
     )
 }
 
-/** 기본 버튼. filled = 화면의 주된 동작(검은 버튼) */
+/** 기본 버튼. filled = 화면의 주된 동작(검은 버튼). 고를 수 없을 때는 점선 테두리 */
 @Composable
 fun InkButton(
     text: String,
@@ -126,24 +203,23 @@ fun InkButton(
     filled: Boolean = false,
     enabled: Boolean = true,
     height: Dp = 52.dp,
-    textSize: TextUnit = 17.sp,
+    textSize: TextUnit = TextUnit.Unspecified,
 ) {
     val (source, pressed) = rememberPress()
     val dark = enabled && (filled xor pressed)
     Box(
         modifier
             .heightIn(min = height)
-            .clip(Shape)
-            .border(1.5.dp, if (enabled) Ink else Faint, Shape)
+            .then(if (enabled) Modifier.border(2.dp, Ink) else Modifier.dashedBorder(2.dp))
             .background(if (dark) Ink else Paper)
             .inkClick(source, enabled, onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text,
-            style = Type.bodyBold.copy(fontSize = textSize),
-            color = if (!enabled) Faint else if (dark) Paper else Ink,
+            style = Type.bodyBold.let { if (textSize != TextUnit.Unspecified) it.copy(fontSize = textSize) else it },
+            color = if (dark) Paper else Ink,
             textAlign = TextAlign.Center,
         )
     }
@@ -181,22 +257,34 @@ fun InkRow(onClick: (() -> Unit)?, modifier: Modifier = Modifier, minHeight: Dp 
     ) { content(dark) }
 }
 
-/** 작은 회색 제목 + 실선. 화면 안의 구역을 나눌 때만 쓴다 */
+/** 작은 제목 + 선. 화면 안의 구역을 나눌 때만 쓴다 */
 @Composable
 fun Section(label: String, modifier: Modifier = Modifier, trailing: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
-    Column(modifier.fillMaxWidth().padding(top = 28.dp)) {
+    Column(modifier.fillMaxWidth().padding(top = 26.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 28.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(label, style = Type.label, modifier = Modifier.weight(1f))
             trailing?.invoke()
         }
-        Rule(Modifier.padding(top = 6.dp, bottom = 4.dp))
+        Rule(Modifier.padding(top = 6.dp, bottom = 4.dp), strong = true)
         content()
     }
 }
 
+/** 구분선. strong = 2dp 실선, 아니면 점선(회색 실선 대신) */
 @Composable
 fun Rule(modifier: Modifier = Modifier, strong: Boolean = false) {
-    Box(modifier.fillMaxWidth().height(if (strong) 2.dp else 1.dp).background(if (strong) Ink else Faint))
+    if (strong) {
+        Box(modifier.fillMaxWidth().height(2.dp).background(Ink))
+    } else {
+        Canvas(modifier.fillMaxWidth().height(2.dp)) {
+            val dot = 2.dp.toPx()
+            var x = 0f
+            while (x < size.width) {
+                drawRect(Ink, Offset(x, 0f), androidx.compose.ui.geometry.Size(dot, dot))
+                x += dot * 2.5f
+            }
+        }
+    }
 }
 
 /** 테두리 상자. 지금 해야 할 일처럼 눈에 띄어야 하는 곳에만 쓴다 */
@@ -205,31 +293,28 @@ fun Boxed(modifier: Modifier = Modifier, inverted: Boolean = false, content: @Co
     Column(
         modifier
             .fillMaxWidth()
-            .clip(Shape)
-            .border(1.5.dp, Ink, Shape)
+            .border(2.dp, Ink)
             .background(if (inverted) Ink else Paper)
-            .padding(horizontal = 18.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         content = content,
     )
 }
 
-/** 체크 칸: 채움 = 함, 빈칸 = 안 함, 가로줄 = 쉬어 간 날, 작은 점 = 해당 없음 */
+/** 체크 칸: 채움 = 함, 빈칸 = 안 함, 빗금 = 쉬어 간 날, 작은 점 = 해당 없음 */
 @Composable
 fun Square(state: Boolean?, size: Dp = 22.dp, today: Boolean = false, rest: Boolean = false) {
-    val shape = RoundedCornerShape(3.dp)
     if (rest) {
-        Box(Modifier.size(size).clip(shape).border(1.5.dp, Faint, shape), contentAlignment = Alignment.Center) {
-            Box(Modifier.width(size * 0.5f).height(2.dp).background(Ink))
-        }
+        Box(Modifier.size(size).border(1.5.dp, Ink).background(ditherBrush(4)))
         return
     }
     when (state) {
-        true -> Box(Modifier.size(size).clip(shape).background(Ink))
-        false -> Box(Modifier.size(size).clip(shape).border(if (today) 2.5.dp else 1.5.dp, Ink, shape))
-        null -> Box(Modifier.size(size), contentAlignment = Alignment.Center) { Box(Modifier.size(4.dp).background(Faint)) }
+        true -> Box(Modifier.size(size).background(Ink))
+        false -> Box(Modifier.size(size).border(if (today) 3.dp else 1.5.dp, Ink))
+        null -> Box(Modifier.size(size), contentAlignment = Alignment.Center) { Box(Modifier.size(3.dp).background(Ink)) }
     }
 }
 
+/** 입력 칸. 비어 있으면 아래 선이 점선, 채우면 실선 */
 @Composable
 fun InkField(
     value: String,
@@ -257,10 +342,11 @@ fun InkField(
         decorationBox = { inner ->
             Column {
                 Box(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                    if (value.isEmpty()) Text(placeholder, style = style, color = Faint)
+                    // 자리 표시 글은 다른 글꼴(갈무리14)과 앞의 › 표시로 입력한 글과 구분한다
+                    if (value.isEmpty()) Text("› $placeholder", style = Type.caption)
                     inner()
                 }
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Ink))
+                if (value.isEmpty()) Rule() else Box(Modifier.fillMaxWidth().height(2.dp).background(Ink))
             }
         },
     )
@@ -269,7 +355,7 @@ fun InkField(
 /** 선택지 중 하나. 고른 칸만 검게 */
 @Composable
 fun <V> Choice(options: List<Pair<V, String>>, selected: V, onSelect: (V) -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth().clip(Shape).border(1.5.dp, Ink, Shape)) {
+    Row(modifier.fillMaxWidth().border(2.dp, Ink)) {
         options.forEachIndexed { i, (value, label) ->
             val (source, pressed) = rememberPress()
             val dark = (value == selected) xor pressed
@@ -281,16 +367,17 @@ fun <V> Choice(options: List<Pair<V, String>>, selected: V, onSelect: (V) -> Uni
                     .inkClick(source) { onSelect(value) },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(label, style = Type.bodyBold.copy(fontSize = 16.sp), color = if (dark) Paper else Ink, textAlign = TextAlign.Center)
+                Text(label, style = Type.bodyBold, color = if (dark) Paper else Ink, textAlign = TextAlign.Center)
             }
-            if (i < options.lastIndex) Box(Modifier.width(1.5.dp).height(48.dp).background(Ink))
+            if (i < options.lastIndex) Box(Modifier.width(2.dp).height(48.dp).background(Ink))
         }
     }
 }
 
+/** 진행 막대: 바탕은 성긴 망점, 찬 부분은 검정 */
 @Composable
-fun Bar(fraction: Float, modifier: Modifier = Modifier, height: Dp = 6.dp) {
-    Box(modifier.fillMaxWidth().height(height).background(Faint)) {
+fun Bar(fraction: Float, modifier: Modifier = Modifier, height: Dp = 10.dp) {
+    Box(modifier.fillMaxWidth().height(height).border(1.5.dp, Ink).background(ditherBrush(2))) {
         Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(height).background(Ink))
     }
 }
@@ -315,13 +402,13 @@ fun <T> Paged(items: List<T>, pageSize: Int = 8, resetKey: Any? = null, row: @Co
 fun Screen(modifier: Modifier = Modifier, scroll: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
     val base = modifier.fillMaxSize().background(Paper)
     Column(
-        (if (scroll) base.verticalScroll(rememberScrollState()) else base).padding(horizontal = 24.dp, vertical = 18.dp),
+        (if (scroll) base.verticalScroll(rememberScrollState()) else base).padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.Top,
         content = content,
     )
 }
 
-/** 겹쳐 뜨는 화면의 머리글: 왼쪽 닫기, 가운데 제목 없이 아래에 명조 제목 */
+/** 겹쳐 뜨는 화면의 머리글: 왼쪽 닫기, 아래에 굵은 제목 */
 @Composable
 fun TopBar(title: String, onBack: (() -> Unit)? = null, closeLabel: String = "닫기") {
     if (onBack != null) {

@@ -1,5 +1,15 @@
 package com.dain.focusink.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.dain.focusink.core.*
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.Alignment
+
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -10,7 +20,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.dain.focusink.core.AppState
 import com.dain.focusink.core.Dates
 import com.dain.focusink.core.EntryKind
@@ -51,7 +60,7 @@ fun ReviewScreen(state: AppState, now: Long, act: Actions, onClose: () -> Unit) 
             T(
                 Plans.firstBlock(state, tomorrow)?.let { "내일은 ${it}에 첫 집중을 시작해요. 못 끝낸 일은 아침에 다시 정하면 돼요." }
                     ?: "못 끝낸 일은 적어 두었으니 내일 아침에 다시 정하면 돼요.",
-                Type.body.copy(color = Muted),
+                Type.caption,
             )
             Gap(36.dp)
             InkButton("닫기", onClose, Modifier.fillMaxWidth(), filled = true)

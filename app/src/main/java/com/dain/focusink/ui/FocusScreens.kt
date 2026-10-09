@@ -1,5 +1,14 @@
 package com.dain.focusink.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.dain.focusink.core.*
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextAlign
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,8 +27,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.dain.focusink.core.AppState
 import com.dain.focusink.core.Dates
 import com.dain.focusink.core.DistractionCategory
@@ -50,7 +57,8 @@ private val PREP = listOf(
 fun FocusSetupScreen(state: AppState, now: Long, act: Actions) {
     val today = Dates.today(now)
     val s = state.settings
-    var minutes by rememberSaveable { mutableIntStateOf(s.deepMinutes) }
+    val preset = Preset.of(s.lastPreset)
+    val minutes = Preset.plannedMinutes(preset, s.customMinutes)
     var entryId by rememberSaveable { mutableStateOf<String?>(null) }
     var custom by rememberSaveable { mutableStateOf("") }
     var intention by rememberSaveable { mutableStateOf("") }
@@ -92,14 +100,17 @@ fun FocusSetupScreen(state: AppState, now: Long, act: Actions) {
                 Gap(4.dp)
                 T(prev.nextStep, Type.body)
                 if (intention.isBlank()) {
-                    InkLink("이걸로 시작하기", { intention = prev.nextStep }, style = Type.caption.copy(color = Ink))
+                    InkLink("이걸로 시작하기", { intention = prev.nextStep }, style = Type.caption)
                 }
             }
         }
 
-        Section("얼마나") {
-            Gap(4.dp)
-            Choice(listOf(90 to "90분", 50 to "50분", 25 to "25분"), minutes, { minutes = it })
+        Section("모드") {
+            PresetList(preset, s.customMinutes, onPick = { p ->
+                act.update { it.copy(settings = it.settings.copy(lastPreset = p.id)) }
+            }, onCustom = { m ->
+                act.update { it.copy(settings = it.settings.copy(customMinutes = m.coerceIn(5, 180))) }
+            })
         }
 
         Section("끝나면 무엇이 되어 있을까요") {
@@ -132,15 +143,14 @@ fun FocusSetupScreen(state: AppState, now: Long, act: Actions) {
 
         Gap(28.dp)
         InkButton(
-            if (label.isBlank()) "집중할 일을 골라 주세요" else "${minutes}분 집중 시작하기",
-            { act.startFocus(label, minutes, intention, chosen?.id, ifThenCustom.ifBlank { ifThen }) },
+            if (label.isBlank()) "집중할 일을 골라 주세요" else if (preset.isFlow) "플로우 시작하기" else "${minutes}분 집중 시작하기",
+            { act.startFocus(label, minutes, intention, chosen?.id, ifThenCustom.ifBlank { ifThen }, preset) },
             Modifier.fillMaxWidth(),
             filled = label.isNotBlank(),
             enabled = label.isNotBlank(),
             height = 60.dp,
-            textSize = 19.sp,
-        )
-        T("처음 ${s.anchorMinutes}분은 중간에 멈출 수 없어요. 그 고비만 넘기면 돼요.", Type.caption, modifier = Modifier.padding(top = 8.dp))
+                    )
+        T("처음 ${Preset.anchorMinutes(minutes, s.anchorMinutes)}분은 중간에 멈출 수 없어요. 그 고비만 넘기면 돼요.", Type.caption, modifier = Modifier.padding(top = 8.dp))
 
         val todays = state.sessions.filter { Dates.dateOf(it.startedAt) == today }
         if (todays.isNotEmpty()) {
@@ -152,7 +162,7 @@ fun FocusSetupScreen(state: AppState, now: Long, act: Actions) {
                         Outcome.ABANDONED -> "그만뒀어요"
                     }
                     Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                        T(Dates.hhmm(x.startedAt), Type.body.copy(color = Muted), modifier = Modifier.width(64.dp))
+                        T(Dates.hhmm(x.startedAt), Type.small, modifier = Modifier.width(56.dp).padding(top = 4.dp))
                         T(x.label, Type.body, modifier = Modifier.weight(1f), maxLines = 1)
                         T("${x.actualMinutes}분 · $mark", Type.caption)
                     }
@@ -201,18 +211,33 @@ fun FocusRunScreen(state: AppState, now: Long, act: Actions, onFinished: (String
         )
         Gap(6.dp)
         T(a.label, Type.title, maxLines = 2)
-        if (a.intention.isNotBlank()) T(a.intention, Type.body.copy(color = Muted))
-        Gap(24.dp)
+        if (a.intention.isNotBlank()) T(a.intention, Type.caption)
+        Gap(22.dp)
 
-        if (phase == Phase.OVERTIME) {
-            T("+${Focus.elapsedMinutes(a, now) - a.plannedMinutes}", Type.hero)
-            T("분 더 했어요", Type.lead)
-        } else {
-            T("${Focus.remainingMinutes(a, now)}", Type.hero)
-            T("분 남았어요 · ${Dates.hhmm(Focus.endsAt(a))}에 끝나요", Type.lead)
+        val flow = Preset.of(a.preset).isFlow && a.preset.isNotEmpty()
+        val elapsed = Focus.elapsedMinutes(a, now)
+        val big = when {
+            flow -> "$elapsed"
+            phase == Phase.OVERTIME -> "+${elapsed - a.plannedMinutes}"
+            else -> "${Focus.remainingMinutes(a, now)}"
         }
-        Gap(16.dp)
-        Bar(Focus.progress(a, now))
+        // 큰 숫자는 5×7 점 행렬. 1분마다만 바뀐다
+        BigDots(big)
+        Gap(10.dp)
+        T(
+            when {
+                flow -> "분째 집중하고 있어요 · ${Dates.hhmm(a.startedAt)}에 시작했어요"
+                phase == Phase.OVERTIME -> "분 더 했어요"
+                else -> "분 남았어요 · ${Dates.hhmm(Focus.endsAt(a))}에 끝나요"
+            },
+            Type.lead,
+        )
+        Gap(14.dp)
+        if (flow) {
+            MinuteGrid(((elapsed / 30) + 1) * 30, elapsed)
+        } else {
+            MinuteGrid(a.plannedMinutes, elapsed.coerceAtMost(a.plannedMinutes), perRow = if (a.plannedMinutes > 60) 15 else 10)
+        }
         if (phase == Phase.ANCHOR) {
             T(
                 "${Focus.anchorRemainingMinutes(a, now)}분만 더 버텨 봐요. 그다음부터는 멈출 수 있어요.",
@@ -259,7 +284,7 @@ fun FocusRunScreen(state: AppState, now: Long, act: Actions, onFinished: (String
                     act.update { Distractions.log(it, c, act.now()) }
                     picking = false
                 }
-                InkLink("취소", { picking = false }, style = Type.caption.copy(color = Ink))
+                InkLink("닫기", { picking = false }, style = Type.caption)
             }
             else -> {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -282,12 +307,14 @@ fun FocusRunScreen(state: AppState, now: Long, act: Actions, onFinished: (String
             Phase.ANCHOR -> ConfirmButton("지금 그만두기", "한 번 더 누르면 그만둬요", {
                 act.finishFocus(Outcome.ABANDONED)?.let(onFinished)
             }, Modifier.fillMaxWidth())
-            Phase.DEEP -> ConfirmButton("일찍 끝내기", "한 번 더 누르면 끝나요", {
+            Phase.DEEP -> if (flow) InkButton("마치고 돌아보기", {
+                act.finishFocus(Outcome.COMPLETED)?.let(onFinished)
+            }, Modifier.fillMaxWidth(), filled = true, height = 60.dp) else ConfirmButton("일찍 끝내기", "한 번 더 누르면 끝나요", {
                 act.finishFocus(Outcome.ENDED_EARLY)?.let(onFinished)
             }, Modifier.fillMaxWidth())
             Phase.OVERTIME -> InkButton("마치고 돌아보기", {
                 act.finishFocus(Outcome.COMPLETED)?.let(onFinished)
-            }, Modifier.fillMaxWidth(), filled = true, height = 60.dp, textSize = 19.sp)
+            }, Modifier.fillMaxWidth(), filled = true, height = 60.dp)
         }
         Gap(24.dp)
     }
@@ -297,7 +324,7 @@ fun FocusRunScreen(state: AppState, now: Long, act: Actions, onFinished: (String
 fun CategoryGrid(onPick: (DistractionCategory) -> Unit) {
     DistractionCategory.entries.chunked(2).forEach { row ->
         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            row.forEach { c -> InkButton(c.label, { onPick(c) }, Modifier.weight(1f), height = 48.dp, textSize = 16.sp) }
+            row.forEach { c -> InkButton(c.label, { onPick(c) }, Modifier.weight(1f), height = 48.dp) }
             if (row.size == 1) Spacer(Modifier.weight(1f))
         }
     }
@@ -334,7 +361,7 @@ fun ReflectScreen(state: AppState, now: Long, sessionId: String, act: Actions, o
                 Type.lead,
             )
             if (x.outcome == Outcome.ABANDONED) {
-                T("괜찮아요. 다음에는 처음 ${state.settings.anchorMinutes}분만 목표로 해 봐요.", Type.body.copy(color = Muted), modifier = Modifier.padding(top = 6.dp))
+                T("괜찮아요. 다음에는 스프린트 15분만 해 봐요.", Type.caption, modifier = Modifier.padding(top = 6.dp))
             }
             Section("집중은 어땠나요") {
                 Gap(4.dp)
@@ -368,13 +395,14 @@ fun ReflectScreen(state: AppState, now: Long, sessionId: String, act: Actions, o
             }, Modifier.fillMaxWidth(), filled = true, height = 56.dp)
         }
     } else {
-        val breakMin = Focus.breakMinutes(x.plannedMinutes, state.settings.breakMinutes)
+        val breakMin = Breaks.minutes(state, x, state.settings.breakMinutes)
         val breakEnd = x.endedAt + breakMin * 60_000L
         val left = ((breakEnd - maxOf(now, x.endedAt) + 59_999) / 60_000).coerceAtLeast(0)
         Screen(scroll = false) {
-            T(if (left > 0) "쉬는 시간" else "다 쉬었어요", Type.label)
+            T(if (left > 0) (if (breakMin >= 15) "긴 쉬는 시간" else "쉬는 시간") else "다 쉬었어요", Type.label)
             Gap(6.dp)
-            T("$left", Type.hero)
+            BigDots("$left")
+            Gap(10.dp)
             T(if (left > 0) "분 쉬어요" else "다음 집중을 시작해도 좋아요", Type.lead)
             Gap(20.dp)
             T("물을 마시고, 몸을 펴고, 창밖 먼 곳을 봐요. 휴대폰은 잠깐 미뤄 둬요.", Type.body)
@@ -382,6 +410,62 @@ fun ReflectScreen(state: AppState, now: Long, sessionId: String, act: Actions, o
             InkButton("다음 집중 준비하기", onDone, Modifier.fillMaxWidth(), filled = left <= 0)
             Gap(10.dp)
             InkButton("오늘은 여기까지", onDone, Modifier.fillMaxWidth())
+        }
+    }
+}
+
+
+/** 화면 폭에 맞춘 큰 점 행렬 숫자 */
+@Composable
+fun BigDots(text: String) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val cols = (text.length * 6 - 1).coerceAtLeast(1)
+        // 점 : 간격 = 4 : 1, 최대 점 16dp
+        val unit = (maxWidth / (cols * 5f)).coerceAtMost(4.dp)
+        DotText(text, dot = unit * 4, gap = unit)
+    }
+}
+
+/** 타이머 모드 목록. 고른 줄은 흑백 반전 */
+@Composable
+fun PresetList(selected: Preset, custom: Int, onPick: (Preset) -> Unit, onCustom: (Int) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(top = 6.dp).border(2.dp, Ink)) {
+        Preset.entries.forEachIndexed { i, p ->
+            val on = p == selected
+            val (source, pressed) = rememberPress()
+            val dark = on xor pressed
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 56.dp).background(if (dark) Ink else Paper).inkClick(source) { onPick(p) }.padding(vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val c = if (dark) Paper else Ink
+                Spacer(Modifier.width(12.dp))
+                Box(Modifier.size(16.dp).border(2.dp, c), contentAlignment = Alignment.Center) {
+                    if (on) Box(Modifier.size(6.dp).background(c))
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    T(p.label, Type.bodyBold, color = c)
+                    T(p.detail, Type.small, color = c)
+                }
+                T(
+                    when (p) {
+                        Preset.FLOW -> "∞"
+                        Preset.CUSTOM -> "$custom"
+                        else -> "${p.minutes}"
+                    },
+                    Type.title, color = c, modifier = Modifier.padding(end = 12.dp),
+                )
+            }
+            if (i < Preset.entries.lastIndex) Box(Modifier.fillMaxWidth().height(1.5.dp).background(Ink))
+        }
+    }
+    if (selected == Preset.CUSTOM) {
+        Gap(8.dp)
+        Row(Modifier.fillMaxWidth().border(2.dp, Ink), verticalAlignment = Alignment.CenterVertically) {
+            InkButton("−5", { onCustom(custom - 5) }, Modifier.width(72.dp), height = 48.dp)
+            T("${custom}분", Type.title, modifier = Modifier.weight(1f), align = androidx.compose.ui.text.style.TextAlign.Center)
+            InkButton("+5", { onCustom(custom + 5) }, Modifier.width(72.dp), height = 48.dp)
         }
     }
 }

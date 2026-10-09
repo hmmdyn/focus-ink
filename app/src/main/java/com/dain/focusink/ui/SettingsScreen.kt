@@ -1,5 +1,14 @@
 package com.dain.focusink.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.dain.focusink.core.*
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextAlign
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,8 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.dain.focusink.core.AppState
 import com.dain.focusink.core.Ids
 import com.dain.focusink.core.Settings
@@ -45,8 +52,11 @@ fun SettingsScreen(state: AppState, act: Actions, onClose: () -> Unit) {
         TopBar("설정", onBack = onClose)
 
         Section("집중") {
-            SettingLabel("기본 집중 시간")
-            Choice(listOf(90 to "90분", 50 to "50분", 25 to "25분"), s.deepMinutes, { v -> set { it.copy(deepMinutes = v) } })
+            SettingLabel("하루 목표 (오늘의 판화가 다 찍히는 시간)")
+            Choice(listOf(60 to "60", 90 to "90", 120 to "120", 180 to "180", 240 to "240"), s.dailyGoalMinutes, { v -> set { it.copy(dailyGoalMinutes = v) } })
+            T("목표의 4분의 1을 채울 때마다 판이 한 겹씩 찍혀요.", Type.caption, modifier = Modifier.padding(top = 6.dp))
+            SettingLabel("챌린지에서 하루에 채울 시간")
+            Choice(listOf(30 to "30분", 60 to "60분", 90 to "90분", 120 to "120분"), s.challengeMinutes, { v -> set { it.copy(challengeMinutes = v) } })
             SettingLabel("중간에 멈출 수 없는 처음 시간")
             Choice(listOf(10 to "10분", 15 to "15분", 20 to "20분"), s.anchorMinutes, { v -> set { it.copy(anchorMinutes = v) } })
             SettingLabel("가장 짧은 쉬는 시간")
@@ -84,7 +94,7 @@ fun SettingsScreen(state: AppState, act: Actions, onClose: () -> Unit) {
                     val v = i + 1
                     InkButton(label, {
                         set { it.copy(managerDays = if (v in it.managerDays) it.managerDays - v else (it.managerDays + v).sorted()) }
-                    }, Modifier.weight(1f), filled = v in s.managerDays, height = 44.dp, textSize = 15.sp)
+                    }, Modifier.weight(1f), filled = v in s.managerDays, height = 44.dp)
                 }
             }
         }
@@ -99,7 +109,7 @@ fun SettingsScreen(state: AppState, act: Actions, onClose: () -> Unit) {
             T(s.syncTopic, Type.heading)
             Gap(8.dp)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                InkButton("복사하기", { clipboard.setText(AnnotatedString(s.syncTopic)) }, Modifier.weight(1f), height = 46.dp, textSize = 16.sp)
+                InkButton("복사하기", { clipboard.setText(AnnotatedString(s.syncTopic)) }, Modifier.weight(1f), height = 46.dp)
                 ConfirmButton("새로 만들기", "단축어도 바꿔야 해요", {
                     set { it.copy(syncTopic = Ids.topic(), lastSyncId = null) }
                 }, Modifier.weight(1f))
@@ -110,8 +120,8 @@ fun SettingsScreen(state: AppState, act: Actions, onClose: () -> Unit) {
             })
             Gap(12.dp)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                InkButton("지금 가져오기", { act.syncNow() }, Modifier.weight(1f), enabled = s.syncEnabled, height = 46.dp, textSize = 16.sp)
-                InkButton("시험 메시지 보내기", { act.publish("Focus Ink 연결을 확인했어요.", force = true) }, Modifier.weight(1f), height = 46.dp, textSize = 16.sp)
+                InkButton("지금 가져오기", { act.syncNow() }, Modifier.weight(1f), enabled = s.syncEnabled, height = 46.dp)
+                InkButton("시험 메시지 보내기", { act.publish("Focus Ink 연결을 확인했어요.", force = true) }, Modifier.weight(1f), height = 46.dp)
             }
             Gap(6.dp)
             T(syncStatus, Type.caption)
@@ -134,6 +144,7 @@ fun SettingsScreen(state: AppState, act: Actions, onClose: () -> Unit) {
         Gap(28.dp)
         T("기록은 이 기기에만 저장돼요. 아이폰과 연결하면 짧은 메시지만 ntfy 서버를 거쳐요.", Type.caption)
         T("github.com/hmmdyn/focus-ink", Type.caption)
+        T("글꼴: 갈무리(Galmuri) · SIL Open Font License 1.1 · 앱에 들어 있어서 따로 설치하지 않아도 돼요.", Type.caption)
         Gap(24.dp)
     }
 }

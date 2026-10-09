@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'redesign/**']
   pull_request:
   workflow_dispatch:
 
@@ -128,9 +128,12 @@ jobs:
           mkdir -p /tmp/shots && cp screens/*.png /tmp/shots/ 2>/dev/null || exit 0
           cp instrument.txt /tmp/shots/ 2>/dev/null || true
           cd /tmp/shots
-          git init -q -b screenshots
+          # main 은 screenshots, 다른 브랜치는 screenshots-<브랜치> 에 올린다
+          BR="screenshots"
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then BR="screenshots-${GITHUB_REF_NAME//\//-}"; fi
+          git init -q -b "$BR"
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
           git add -A
           git commit -qm "Walkthrough screenshots for ${GITHUB_SHA::7}"
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" screenshots
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "$BR"

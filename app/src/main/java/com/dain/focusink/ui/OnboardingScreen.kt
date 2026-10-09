@@ -1,5 +1,14 @@
 package com.dain.focusink.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.dain.focusink.core.*
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextAlign
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,7 +25,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.dain.focusink.core.AppState
 import com.dain.focusink.core.Habits
 import com.dain.focusink.core.Journal
@@ -37,7 +45,7 @@ fun OnboardingScreen(state: AppState, act: Actions, onRequestNotifications: () -
     Screen {
         // 진행 표시: 네 칸
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 8.dp)) {
-            repeat(4) { i -> Box(Modifier.width(28.dp).height(3.dp).background(if (i <= step) Ink else Faint)) }
+            repeat(4) { i -> Box(Modifier.width(28.dp).height(6.dp).border(1.5.dp, Ink).background(if (i <= step) Ink else Paper)) }
         }
         Gap(28.dp)
         when (step) {
@@ -60,7 +68,7 @@ fun OnboardingScreen(state: AppState, act: Actions, onRequestNotifications: () -
                 InkField(tiny, { tiny = it }, "가장 작게 하면? (예: 책 펴기)")
                 InkField(anchor, { anchor = it }, "언제 할까요? (예: 아침 커피를 내린 뒤)")
                 Gap(12.dp)
-                T("나중에 기록 탭에서 정해도 괜찮아요.", Type.caption)
+                T("나중에 습관 탭에서 정해도 괜찮아요.", Type.caption)
             }
             2 -> {
                 T("알림 받을 시간을\n정해 볼까요?", Type.display)
