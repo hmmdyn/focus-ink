@@ -183,6 +183,7 @@ class WalkthroughTest {
 
         // 7. 설정: 하루 마무리 시각을 00:00 으로 바꿔 바로 띄운다
         tap("설정")
+        shot("17a_settings_top")
         field(0).performTextReplacement("00:00")
         field(0).performImeAction() // 키보드 닫기
         compose.waitForIdle()

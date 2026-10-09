@@ -35,6 +35,10 @@ private val DOW = listOf("월", "화", "수", "목", "금", "토", "일")
 
 private fun validTime(t: String): Boolean = runCatching { LocalTime.parse(t.trim()) }.isSuccess
 
+/**
+ * 설정(조정) 화면. 자주 바꾸는 것부터: 하루 목표 → 타이머 → 챌린지 → 하루 → 아이폰 → 백업 → 정보.
+ * 고르는 값은 모두 Choice 한 줄로, 설명은 꼭 필요한 곳에만 한 줄.
+ */
 @Composable
 fun SettingsScreen(state: AppState, act: Actions, onClose: () -> Unit) {
     val s = state.settings
@@ -51,30 +55,45 @@ fun SettingsScreen(state: AppState, act: Actions, onClose: () -> Unit) {
     Screen {
         TopBar("설정", onBack = onClose)
 
-        Section("집중") {
-            SettingLabel("하루 목표 (오늘의 판화가 다 찍히는 시간)")
-            Choice(listOf(60 to "60", 90 to "90", 120 to "120", 180 to "180", 240 to "240"), s.dailyGoalMinutes, { v -> set { it.copy(dailyGoalMinutes = v) } })
-            T("목표의 4분의 1을 채울 때마다 판이 한 겹씩 찍혀요.", Type.caption, modifier = Modifier.padding(top = 6.dp))
-            SettingLabel("챌린지에서 하루에 채울 시간")
-            Choice(listOf(30 to "30분", 60 to "60분", 90 to "90분", 120 to "120분"), s.challengeMinutes, { v -> set { it.copy(challengeMinutes = v) } })
-            SettingLabel("중간에 멈출 수 없는 처음 시간")
-            Choice(listOf(10 to "10분", 15 to "15분", 20 to "20분"), s.anchorMinutes, { v -> set { it.copy(anchorMinutes = v) } })
-            SettingLabel("가장 짧은 쉬는 시간")
-            Choice(listOf(5 to "5분", 10 to "10분", 15 to "15분"), s.breakMinutes, { v -> set { it.copy(breakMinutes = v) } })
-            T("오래 집중한 뒤에는 더 쉬어요. 90분 뒤에는 15분, 50분 뒤에는 8분이에요.", Type.caption, modifier = Modifier.padding(top = 6.dp))
-            SettingLabel("딴짓하고 싶을 때 기다릴 시간")
-            Choice(listOf(10 to "10분", 15 to "15분"), s.urgeMinutes, { v -> set { it.copy(urgeMinutes = v) } })
+        // 하루 목표와 판 나눔: 목표를 바꾸면 한 판에 드는 시간이 바로 보인다
+        Section("하루 목표") {
+            Gap(4.dp)
+            Choice(listOf(60, 90, 120, 180, 240).map { it to "$it" }, s.dailyGoalMinutes, { v -> set { it.copy(dailyGoalMinutes = v) } })
+            Gap(10.dp)
+            PassSplit(s.dailyGoalMinutes)
+            T("목표의 4분의 1을 채울 때마다 오늘의 판화가 한 판씩 찍혀요.", Type.caption, modifier = Modifier.padding(top = 6.dp))
+        }
+
+        Section("타이머") {
+            SettingRow("처음 멈출 수 없는 시간") {
+                Choice(listOf(10 to "10분", 15 to "15분", 20 to "20분"), s.anchorMinutes, { v -> set { it.copy(anchorMinutes = v) } })
+            }
+            SettingRow("가장 짧은 쉬는 시간") {
+                Choice(listOf(5 to "5분", 10 to "10분", 15 to "15분"), s.breakMinutes, { v -> set { it.copy(breakMinutes = v) } })
+            }
+            T("포모도로는 5분, 네 번째마다 15분 쉬어요. 다른 모드는 집중 시간의 6분의 1만큼 쉬어요.", Type.caption, modifier = Modifier.padding(top = 6.dp))
+            SettingRow("딴짓하고 싶을 때 기다릴 시간") {
+                Choice(listOf(10 to "10분", 15 to "15분"), s.urgeMinutes, { v -> set { it.copy(urgeMinutes = v) } })
+            }
+        }
+
+        Section("챌린지") {
+            SettingRow("기간") {
+                Choice(listOf(7 to "7일", 14 to "14일", 21 to "21일", 30 to "30일"), s.challengeDays, { v -> set { it.copy(challengeDays = v) } })
+            }
+            SettingRow("하루에 채울 시간") {
+                Choice(listOf(30 to "30분", 60 to "60분", 90 to "90분", 120 to "120분"), s.challengeMinutes, { v -> set { it.copy(challengeMinutes = v) } })
+            }
+            T(
+                s.challengeStart?.let { "${Dates.pretty(it)}에 시작한 챌린지에 바로 반영돼요." }
+                    ?: "습관 탭에서 챌린지를 시작할 수 있어요.",
+                Type.caption, modifier = Modifier.padding(top = 6.dp),
+            )
         }
 
         Section("하루") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                T("하루 마무리", Type.body, modifier = Modifier.width(150.dp))
-                InkField(review, { review = it }, "21:30", Modifier.weight(1f))
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                T("휴대폰 내려놓기", Type.body, modifier = Modifier.width(150.dp))
-                InkField(sunset, { sunset = it }, "22:30", Modifier.weight(1f))
-            }
+            TimeRow("하루 마무리", review, "21:30") { review = it }
+            TimeRow("휴대폰 내려놓기", sunset, "22:30") { sunset = it }
             if (review != s.reviewTime || sunset != s.sunsetTime) {
                 val ok = validTime(review) && validTime(sunset)
                 Gap(10.dp)
@@ -86,15 +105,22 @@ fun SettingsScreen(state: AppState, act: Actions, onClose: () -> Unit) {
             InkRow({ set { it.copy(remindersEnabled = !it.remindersEnabled) } }) { dark ->
                 Square(s.remindersEnabled)
                 Spacer(Modifier.width(14.dp))
-                T("두 시간에 알림 받기", Type.body, color = if (dark) Paper else Ink)
+                T("두 시각에 알림 받기", Type.body, color = if (dark) Paper else Ink)
             }
-            SettingLabel("회의와 통화를 몰아 두는 요일")
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                DOW.forEachIndexed { i, label ->
-                    val v = i + 1
-                    InkButton(label, {
-                        set { it.copy(managerDays = if (v in it.managerDays) it.managerDays - v else (it.managerDays + v).sorted()) }
-                    }, Modifier.weight(1f), filled = v in s.managerDays, height = 44.dp)
+            SettingRow("회의와 통화를 몰아 두는 요일") {
+                Row(Modifier.fillMaxWidth().border(2.dp, Ink)) {
+                    DOW.forEachIndexed { i, label ->
+                        val v = i + 1
+                        val on = v in s.managerDays
+                        val (source, pressed) = rememberPress()
+                        val dark = on xor pressed
+                        if (i > 0) Box(Modifier.width(2.dp).height(48.dp).background(Ink))
+                        Box(
+                            Modifier.weight(1f).heightIn(min = 48.dp).background(if (dark) Ink else Paper)
+                                .inkClick(source) { set { it.copy(managerDays = if (v in it.managerDays) it.managerDays - v else (it.managerDays + v).sorted()) } },
+                            contentAlignment = Alignment.Center,
+                        ) { T(label, Type.bodyBold, color = if (dark) Paper else Ink) }
+                    }
                 }
             }
         }
@@ -105,31 +131,35 @@ fun SettingsScreen(state: AppState, act: Actions, onClose: () -> Unit) {
                 Spacer(Modifier.width(14.dp))
                 T("아이폰 단축어와 연결하기", Type.body, color = if (dark) Paper else Ink)
             }
-            SettingLabel("토픽 이름 (단축어에 그대로 입력하고, 다른 사람에게는 알려 주지 마세요)")
-            T(s.syncTopic, Type.heading)
+            T("토픽 이름 · 단축어에 그대로 넣고, 다른 사람에게는 알려 주지 않아요.", Type.caption, modifier = Modifier.padding(top = 10.dp))
+            Gap(6.dp)
+            Box(Modifier.fillMaxWidth().border(2.dp, Ink).background(ditherBrush(2)).padding(10.dp)) {
+                T(s.syncTopic, Type.bodyBold, modifier = Modifier.background(Paper).padding(horizontal = 4.dp))
+            }
             Gap(8.dp)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                InkButton("복사하기", { clipboard.setText(AnnotatedString(s.syncTopic)) }, Modifier.weight(1f), height = 46.dp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                InkButton("복사하기", { clipboard.setText(AnnotatedString(s.syncTopic)) }, Modifier.weight(1f), height = 48.dp)
                 ConfirmButton("새로 만들기", "단축어도 바꿔야 해요", {
                     set { it.copy(syncTopic = Ids.topic(), lastSyncId = null) }
                 }, Modifier.weight(1f))
             }
-            SettingLabel("서버")
-            InkField(server, { server = it }, "https://ntfy.sh", onDone = {
+            Gap(6.dp)
+            InkField(server, { server = it }, "서버 · https://ntfy.sh", onDone = {
                 if (server.startsWith("http")) set { it.copy(syncServer = server.trim().trimEnd('/')) }
             })
-            Gap(12.dp)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                InkButton("지금 가져오기", { act.syncNow() }, Modifier.weight(1f), enabled = s.syncEnabled, height = 46.dp)
-                InkButton("시험 메시지 보내기", { act.publish("Focus Ink 연결을 확인했어요.", force = true) }, Modifier.weight(1f), height = 46.dp)
+            Gap(10.dp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                InkButton("지금 가져오기", { act.syncNow() }, Modifier.weight(1f), enabled = s.syncEnabled, height = 48.dp)
+                InkButton("시험 메시지 보내기", { act.publish("Focus Ink 연결을 확인했어요.", force = true) }, Modifier.weight(1f), height = 48.dp)
             }
             Gap(6.dp)
             T(syncStatus, Type.caption)
         }
 
         Section("백업") {
+            Gap(4.dp)
             InkButton("백업 파일 내보내기", { act.shareBackup(context) }, Modifier.fillMaxWidth())
-            Gap(8.dp)
+            Gap(4.dp)
             InkField(importText, { importText = it }, "백업 내용을 붙여 넣으면 복원할 수 있어요", singleLine = false)
             if (importText.isNotBlank()) {
                 Gap(8.dp)
@@ -141,15 +171,48 @@ fun SettingsScreen(state: AppState, act: Actions, onClose: () -> Unit) {
             if (importMsg.isNotEmpty()) T(importMsg, Type.caption)
         }
 
-        Gap(28.dp)
-        T("기록은 이 기기에만 저장돼요. 아이폰과 연결하면 짧은 메시지만 ntfy 서버를 거쳐요.", Type.caption)
-        T("github.com/hmmdyn/focus-ink", Type.caption)
-        T("글꼴: 갈무리(Galmuri) · SIL Open Font License 1.1 · 앱에 들어 있어서 따로 설치하지 않아도 돼요.", Type.caption)
+        Section("정보") {
+            Gap(6.dp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PixelIcon("coach", pixel = 4.dp)
+                Spacer(Modifier.width(12.dp))
+                DotText("FOCUS INK", dot = 3.dp, gap = 1.dp, ghost = false, square = true)
+            }
+            Gap(10.dp)
+            T("기록은 이 기기에만 저장돼요. 아이폰과 연결하면 짧은 메시지만 ntfy 서버를 거쳐요.", Type.caption)
+            T("글꼴은 갈무리(Galmuri, SIL Open Font License 1.1)예요. 앱에 들어 있어서 따로 설치하지 않아도 돼요.", Type.caption, modifier = Modifier.padding(top = 6.dp))
+            T("github.com/hmmdyn/focus-ink", Type.caption, modifier = Modifier.padding(top = 6.dp))
+        }
         Gap(24.dp)
     }
 }
 
+/** 목표를 네 판으로 나눈 모습. 판마다 망점 농도가 한 단계씩 진해진다 */
 @Composable
-private fun SettingLabel(text: String) {
-    T(text, Type.body, modifier = Modifier.padding(top = 18.dp, bottom = 8.dp))
+private fun PassSplit(goal: Int) {
+    val per = goal / Print.PASSES
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Print.PASS_NAMES.forEachIndexed { i, name ->
+            Column(Modifier.weight(1f)) {
+                Box(Modifier.fillMaxWidth().height(28.dp).border(1.5.dp, Ink).background(ditherBrush((i + 1) * 4)))
+                Gap(4.dp)
+                T(name, Type.small)
+                T("${per}분", Type.bodyBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingRow(label: String, content: @Composable () -> Unit) {
+    T(label, Type.body, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
+    content()
+}
+
+@Composable
+private fun TimeRow(label: String, value: String, placeholder: String, onChange: (String) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        T(label, Type.body, modifier = Modifier.width(150.dp))
+        InkField(value, onChange, placeholder, Modifier.weight(1f))
+    }
 }
