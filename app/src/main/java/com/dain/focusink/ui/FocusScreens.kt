@@ -140,16 +140,16 @@ fun FocusSetupScreen(state: AppState, now: Long, act: Actions) {
             height = 60.dp,
             textSize = 19.sp,
         )
-        T("처음 ${s.anchorMinutes}분 동안은 중간에 멈출 수 없어요.", Type.caption, modifier = Modifier.padding(top = 8.dp))
+        T("처음 ${s.anchorMinutes}분은 중간에 멈출 수 없어요. 그 고비만 넘기면 돼요.", Type.caption, modifier = Modifier.padding(top = 8.dp))
 
         val todays = state.sessions.filter { Dates.dateOf(it.startedAt) == today }
         if (todays.isNotEmpty()) {
             Section("오늘 집중한 시간") {
                 todays.forEach { x ->
                     val mark = when (x.outcome) {
-                        Outcome.COMPLETED -> "끝까지"
-                        Outcome.ENDED_EARLY -> "일찍 끝냄"
-                        Outcome.ABANDONED -> "그만둠"
+                        Outcome.COMPLETED -> "끝까지 했어요"
+                        Outcome.ENDED_EARLY -> "일찍 끝냈어요"
+                        Outcome.ABANDONED -> "그만뒀어요"
                     }
                     Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                         T(Dates.hhmm(x.startedAt), Type.body.copy(color = Muted), modifier = Modifier.width(64.dp))
@@ -215,7 +215,7 @@ fun FocusRunScreen(state: AppState, now: Long, act: Actions, onFinished: (String
         Bar(Focus.progress(a, now))
         if (phase == Phase.ANCHOR) {
             T(
-                "${Focus.anchorRemainingMinutes(a, now)}분 뒤부터 멈출 수 있어요. 다른 창은 열지 말아요.",
+                "${Focus.anchorRemainingMinutes(a, now)}분만 더 버텨 봐요. 그다음부터는 멈출 수 있어요.",
                 Type.caption, modifier = Modifier.padding(top = 10.dp),
             )
         }
@@ -240,7 +240,7 @@ fun FocusRunScreen(state: AppState, now: Long, act: Actions, onFinished: (String
                             InkButton("괜찮아졌어요", {
                                 act.update { Focus.resolveUrge(it, act.now(), passed = true, category = DistractionCategory.PHONE) }
                             }, Modifier.weight(1f), filled = true)
-                            InkButton("결국 했어요", { urgeLost = true }, Modifier.weight(1f))
+                            InkButton("딴짓했어요", { urgeLost = true }, Modifier.weight(1f))
                         }
                     } else {
                         T("무엇을 했나요?", Type.bodyBold)
@@ -269,7 +269,7 @@ fun FocusRunScreen(state: AppState, now: Long, act: Actions, onFinished: (String
             }
         }
         if (lost + won > 0) {
-            T(listOfNotNull(if (lost > 0) "딴짓 ${lost}번" else null, if (won > 0) "참음 ${won}번" else null).joinToString(" · "), Type.caption, modifier = Modifier.padding(top = 10.dp))
+            T(listOfNotNull(if (lost > 0) "딴짓 ${lost}번" else null, if (won > 0) "${won}번 참았어요" else null).joinToString(" · "), Type.caption, modifier = Modifier.padding(top = 10.dp))
         }
 
         if (linked != null && linked.status == EntryStatus.OPEN) {
@@ -279,7 +279,7 @@ fun FocusRunScreen(state: AppState, now: Long, act: Actions, onFinished: (String
 
         Gap(36.dp)
         when (phase) {
-            Phase.ANCHOR -> ConfirmButton("그래도 그만두기", "한 번 더 누르면 그만둬요", {
+            Phase.ANCHOR -> ConfirmButton("지금 그만두기", "한 번 더 누르면 그만둬요", {
                 act.finishFocus(Outcome.ABANDONED)?.let(onFinished)
             }, Modifier.fillMaxWidth())
             Phase.DEEP -> ConfirmButton("일찍 끝내기", "한 번 더 누르면 끝나요", {
@@ -319,19 +319,29 @@ fun ReflectScreen(state: AppState, now: Long, sessionId: String, act: Actions, o
 
     if (!saved) {
         Screen {
-            T(if (x.outcome == Outcome.ABANDONED) "이번에는 여기까지예요" else "수고했어요", Type.display)
+            T(
+                when (x.outcome) {
+                    Outcome.COMPLETED -> "끝까지 해냈어요!"
+                    Outcome.ENDED_EARLY -> "수고했어요"
+                    Outcome.ABANDONED -> "이번에는 여기까지예요"
+                },
+                Type.display,
+            )
             Gap(6.dp)
             val spent = if (x.actualMinutes < 1) "시작하고 바로 멈췄어요" else "${Stats.duration(x.actualMinutes)} 동안 집중했어요"
             T(
                 spent + if (x.distractions > 0) ". 딴짓은 ${x.distractions}번 했어요." else ".",
                 Type.lead,
             )
+            if (x.outcome == Outcome.ABANDONED) {
+                T("괜찮아요. 다음에는 처음 ${state.settings.anchorMinutes}분만 목표로 해 봐요.", Type.body.copy(color = Muted), modifier = Modifier.padding(top = 6.dp))
+            }
             Section("집중은 어땠나요") {
                 Gap(4.dp)
                 Choice(listOf(1 to "산만했어요", 2 to "보통이에요", 3 to "몰입했어요"), quality, { quality = it })
             }
             Section("한 줄 메모") {
-                InkField(note, { note = it }, "끝낸 것이나 막힌 것을 적어 주세요", singleLine = false)
+                InkField(note, { note = it }, "끝낸 것이나 막힌 것을 한 줄로 적어 봐요", singleLine = false)
             }
             if (!markDone) {
                 Section("다음에 이어서 할 일") {
@@ -367,7 +377,7 @@ fun ReflectScreen(state: AppState, now: Long, sessionId: String, act: Actions, o
             T("$left", Type.hero)
             T(if (left > 0) "분 쉬어요" else "다음 집중을 시작해도 좋아요", Type.lead)
             Gap(20.dp)
-            T("물을 마시고, 몸을 펴고, 창밖 먼 곳을 봐요. 휴대폰은 보지 않아요.", Type.body)
+            T("물을 마시고, 몸을 펴고, 창밖 먼 곳을 봐요. 휴대폰은 잠깐 미뤄 둬요.", Type.body)
             Gap(36.dp)
             InkButton("다음 집중 준비하기", onDone, Modifier.fillMaxWidth(), filled = left <= 0)
             Gap(10.dp)

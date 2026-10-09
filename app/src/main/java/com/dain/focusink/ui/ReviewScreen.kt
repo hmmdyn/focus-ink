@@ -104,7 +104,7 @@ fun ReviewScreen(state: AppState, now: Long, act: Actions, onClose: () -> Unit) 
         }
 
         Section("한 줄 회고") {
-            InkField(note, { note = it }, "잘한 일이나 배운 점을 적어 주세요", singleLine = false)
+            InkField(note, { note = it }, "오늘 잘한 일 하나를 적어 볼까요?", singleLine = false)
         }
 
         Section("내일 가장 중요한 일") {
@@ -119,7 +119,7 @@ fun ReviewScreen(state: AppState, now: Long, act: Actions, onClose: () -> Unit) 
         Section("내일 첫 집중은 몇 시에") {
             InkField(firstAt, { firstAt = it }, "예: 09:00")
             T(
-                if (firstAtOk) "정해 두면 내일 오늘 쪽 맨 위에 보여 드려요." else "09:00 처럼 적어 주세요.",
+                if (firstAtOk) "정해 두면 내일 오늘 쪽 맨 위에 보여 드려요." else "09:00처럼 적어 주세요.",
                 Type.caption, modifier = Modifier.padding(top = 6.dp),
             )
         }
@@ -133,7 +133,7 @@ fun ReviewScreen(state: AppState, now: Long, act: Actions, onClose: () -> Unit) 
                 s = Reviews.complete(s, today, note, n)
                 s
             }
-            act.publish("오늘 하루를 마무리했어요: ${Stats.summaryLine(stat)}")
+            act.publish("오늘 하루를 마무리했어요. ${Stats.summaryLine(stat)}")
             act.flash()
             done = true
         }, Modifier.fillMaxWidth(), filled = true, height = 56.dp)

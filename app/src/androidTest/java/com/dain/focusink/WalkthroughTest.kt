@@ -93,7 +93,7 @@ class WalkthroughTest {
 
         // 2. 오늘 쪽
         compose.onNodeWithText("오늘 할 일").assertExists()
-        compose.onNodeWithText("첫 집중을 시작할 차례예요").assertExists()
+        compose.onNodeWithText("첫 집중을 시작해 볼까요?").assertExists()
         shot("04_today")
 
         // 3. 어제 쪽에 적고, 오늘로 돌아와 지난 할 일 정리
@@ -136,7 +136,7 @@ class WalkthroughTest {
         compose.onNodeWithText("물 한 잔 마시고 자리로 돌아오기").assertExists()
         shot("12_focus_urge")
         tap("괜찮아졌어요")
-        tap("그래도 그만두기")
+        tap("지금 그만두기")
         tap("한 번 더 누르면 그만둬요")
         shot("13_reflect")
         compose.onNodeWithText("시작하고 바로 멈췄어요. 딴짓은 1번 했어요.").assertExists()

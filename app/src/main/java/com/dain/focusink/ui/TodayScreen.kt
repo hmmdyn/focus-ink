@@ -86,7 +86,7 @@ fun TodayScreen(state: AppState, now: Long, act: Actions, open: (Overlay) -> Uni
             if (isToday) "오늘 할 일" else "이날 할 일",
             trailing = { if (tasks.isNotEmpty()) T("${tasks.count { it.status == EntryStatus.DONE }}/${tasks.size}", Type.caption) },
         ) {
-            if (entries.isEmpty() && !adding) T(if (isToday) "아직 적은 일이 없어요." else "이날은 적은 일이 없어요.", Type.body.copy(color = Muted), modifier = Modifier.padding(vertical = 10.dp))
+            if (entries.isEmpty() && !adding) T(if (isToday) "아직 적은 일이 없어요. 떠오르는 일부터 적어 볼까요?" else "이날은 적은 일이 없어요.", Type.body.copy(color = Muted), modifier = Modifier.padding(vertical = 10.dp))
             (top + rest).forEach { e ->
                 val number = top.indexOfFirst { it.id == e.id }.takeIf { it >= 0 }?.plus(1)
                 EntryLine(
@@ -149,14 +149,25 @@ fun habitHint(state: AppState, h: Habit, today: String): String? {
     val small = h.tiny.ifBlank { null }
     val how = listOf(h.anchor, h.tiny).filter { it.isNotBlank() }.joinToString(" ").ifBlank { null }
     return when (Habits.status(state, h, today)) {
-        HabitStatus.DONE -> if (Habits.cameBack(state, h, today)) "다시 돌아왔어요. 이게 제일 중요해요." else null
+        HabitStatus.DONE -> when {
+            Habits.cameBack(state, h, today) -> "다시 돌아왔어요! 다시 시작한 게 제일 중요해요."
+            else -> milestone(Habits.streak(state, h.id, today))
+        }
         HabitStatus.RESTING -> "오늘은 쉬어 가는 날이에요. 연속 기록은 그대로예요."
-        HabitStatus.MUST_TODAY -> "어제 못 했어요. 오늘은 " + (small?.let { Hangul.josa(it, "이라도", "라도") } ?: "작게라도") + " 해요."
+        HabitStatus.MUST_TODAY -> "오늘은 " + (small?.let { Hangul.josa(it, "이라도", "라도") } ?: "작게라도") + " 해 봐요. 두 번 연속만 빠지지 않으면 돼요."
         HabitStatus.LAPSED ->
             (if (Habits.isFreshStart(today)) "새로 시작하기 좋은 날이에요. " else "괜찮아요, 다시 하면 돼요. ") +
                 (small?.let { "오늘은 ${Hangul.josa(it, "만", "만")} 해 봐요." } ?: "오늘은 아주 작게 해 봐요.")
         HabitStatus.PENDING -> how
     }
+}
+
+/** 연속 일수 이정표. 66일은 습관이 자리 잡는 데 걸린 중앙값이다 (Lally 외 2010). */
+private fun milestone(streak: Int): String? = when (streak) {
+    7 -> "7일째예요! 한 주를 꼬박 채웠어요."
+    14, 21, 30, 50, 100 -> "${streak}일째예요! 여기까지 온 것 자체가 대단해요."
+    66 -> "66일째예요! 습관이 자리 잡는 데 보통 걸리는 시간을 채웠어요."
+    else -> null
 }
 
 @Composable
@@ -190,7 +201,7 @@ fun AddEntry(act: Actions, date: String, onClose: (() -> Unit)? = null) {
         }
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        InkField(text, { text = it }, "할 일을 적어 주세요", Modifier.weight(1f), onDone = { save() })
+        InkField(text, { text = it }, "할 일을 적어 보세요", Modifier.weight(1f), onDone = { save() })
         Spacer(Modifier.width(10.dp))
         InkButton("추가", { save() }, height = 48.dp)
     }
@@ -218,7 +229,7 @@ fun EntryLine(e: Entry, number: Int? = null, trailing: (@Composable () -> Unit)?
             T(e.text, if (number != null && !closed) Type.bodyBold else Type.body, color = c, strike = closed)
             val meta = listOfNotNull(
                 if (e.migrations > 0) "${e.migrations}번 옮겼어요" else null,
-                if (e.source == Source.IPHONE) "아이폰에서 적음" else null,
+                if (e.source == Source.IPHONE) "아이폰에서 적었어요" else null,
             )
             if (meta.isNotEmpty()) T(meta.joinToString(" · "), Type.caption, color = if (dark) Paper else Muted)
         }
@@ -238,7 +249,7 @@ fun Top3Screen(state: AppState, act: Actions, onClose: () -> Unit) {
     Screen {
         TopBar("오늘 가장 중요한 일", onBack = onClose)
         Gap(6.dp)
-        T(if (full) "세 가지를 모두 골랐어요." else "오늘 꼭 끝내고 싶은 일을 세 가지까지 골라 주세요.", Type.body.copy(color = Muted))
+        T(if (full) "세 가지를 모두 골랐어요." else "오늘 꼭 끝내고 싶은 일을 세 가지까지 골라 봐요.", Type.body.copy(color = Muted))
         // 계획할 때 지난 기록을 함께 보면 지나치게 낙관적인 계획이 줄어든다 (Buehler 외 1994)
         Stats.dailyAverageMinutes(state, today)?.let { avg ->
             Gap(8.dp)

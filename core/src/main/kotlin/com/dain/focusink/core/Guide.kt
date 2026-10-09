@@ -14,7 +14,7 @@ object Guide {
         val today = Dates.today(now, zone)
         val time = Dates.timeOf(now, zone)
         val a = state.active
-        if (!s.onboarded) return NextAction(NextKind.SETUP, "처음 설정을 마쳐 주세요", "")
+        if (!s.onboarded) return NextAction(NextKind.SETUP, "처음 설정부터 해 볼까요?", "")
         if (a != null) {
             val left = Focus.remainingMinutes(a, now)
             return NextAction(
@@ -28,15 +28,15 @@ object Guide {
         val afterReview = !time.isBefore(Dates.parseTime(s.reviewTime))
 
         if (reviewed && afterSunset) return NextAction(NextKind.SUNSET, "휴대폰을 내려놓을 시간이에요", "화면을 끄고 책이나 일기로 하루를 마무리해요.")
-        if (reviewed) return NextAction(NextKind.DONE_FOR_TODAY, "오늘 정리를 마쳤어요", "내일 할 일도 정해 두었어요.")
+        if (reviewed) return NextAction(NextKind.DONE_FOR_TODAY, "오늘 정리를 마쳤어요", "내일 할 일도 정해 두었어요. 이제 푹 쉬어요.")
         if (afterReview) return NextAction(NextKind.REVIEW, "하루를 마무리할 시간이에요", "3분이면 충분해요.")
 
         val pending = Journal.pendingMigration(state, today).size
         if (pending > 0 && sessionsToday == 0) {
-            return NextAction(NextKind.MIGRATE, "지난 할 일 ${pending}개가 남아 있어요", "오늘도 할지 하나씩 정해 주세요.")
+            return NextAction(NextKind.MIGRATE, "지난 할 일 ${pending}개가 남아 있어요", "오늘도 할지 하나씩 정해 봐요.")
         }
         if (Journal.topThree(state, today).isEmpty()) {
-            return NextAction(NextKind.PLAN_TOP3, "오늘 가장 중요한 일을 정해 주세요", "세 가지까지 고를 수 있어요.")
+            return NextAction(NextKind.PLAN_TOP3, "오늘 가장 중요한 일부터 정해 볼까요?", "세 가지까지 고를 수 있어요.")
         }
         if (sessionsToday == 0) {
             val first = Journal.topThree(state, today).firstOrNull { it.status == EntryStatus.OPEN }
@@ -49,7 +49,7 @@ object Guide {
                     first?.text ?: "가장 어려운 일부터 시작해요.",
                 )
             }
-            return NextAction(NextKind.FIRST_BLOCK, "첫 집중을 시작할 차례예요", first?.text ?: "가장 어려운 일부터 시작해요.")
+            return NextAction(NextKind.FIRST_BLOCK, "첫 집중을 시작해 볼까요?", first?.text ?: "가장 어려운 일부터 시작해요.")
         }
         return NextAction(NextKind.NEXT_BLOCK, "다음 집중을 시작해 볼까요?", "충분히 쉬었다면 이어서 시작해요.")
     }

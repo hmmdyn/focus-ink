@@ -41,14 +41,15 @@ fun RecordScreen(state: AppState, now: Long, act: Actions) {
         T("지난 7일", Type.label)
         Gap(4.dp)
         T(if (total > 0) "${Stats.duration(total)} 집중했어요" else "아직 집중한 기록이 없어요", Type.display)
+        if (total == 0) T("집중 탭에서 25분부터 시작해 볼까요?", Type.body.copy(color = Muted))
         val rate = Stats.completionRate(state, weekFrom, today)
         val q = Stats.averageQuality(state, weekFrom, today)
         val parts = listOfNotNull(
-            rate?.let { "끝까지 마친 비율 $it%" },
-            q?.let { "집중도 " + String.format(Locale.ROOT, "%.1f", it) + "점" },
-            days.sumOf { it.urgesResisted }.takeIf { it > 0 }?.let { "참은 딴짓 ${it}번" },
+            rate?.let { "시작한 집중의 $it%를 끝까지 했어요." },
+            q?.let { "집중도는 평균 " + String.format(Locale.ROOT, "%.1f", it) + "점이에요." },
+            days.sumOf { it.urgesResisted }.takeIf { it > 0 }?.let { "딴짓하고 싶을 때 ${it}번 참았어요." },
         )
-        if (total > 0 && parts.isNotEmpty()) T(parts.joinToString(" · "), Type.body.copy(color = Muted))
+        if (total > 0 && parts.isNotEmpty()) T(parts.joinToString(" "), Type.body.copy(color = Muted))
 
         // 막대: 세로 막대 7개, 아래에 요일
         Gap(22.dp)
@@ -133,7 +134,7 @@ private fun HabitBlock(state: AppState, h: Habit, today: String, act: Actions) {
                 InkButton("오늘은 쉬어 가기", { act.update { Habits.toggleRest(it, h.id, today) }; menu = false }, Modifier.fillMaxWidth())
                 Gap(8.dp)
             } else if (Habits.isResting(state, h.id, today)) {
-                InkButton("쉬어 가기 취소하기", { act.update { Habits.toggleRest(it, h.id, today) }; menu = false }, Modifier.fillMaxWidth())
+                InkButton("오늘도 할래요", { act.update { Habits.toggleRest(it, h.id, today) }; menu = false }, Modifier.fillMaxWidth())
                 Gap(8.dp)
             }
             ConfirmButton("이 습관 그만두기", "한 번 더 누르면 보관해요", { act.update { Habits.archive(it, h.id) } }, Modifier.fillMaxWidth())
@@ -159,7 +160,7 @@ private fun HabitForm(today: String, act: Actions, onClose: () -> Unit) {
                     onClose()
                 }
             }, Modifier.weight(1f), filled = name.isNotBlank(), enabled = name.isNotBlank())
-            InkButton("취소", onClose, Modifier.weight(1f))
+            InkButton("닫기", onClose, Modifier.weight(1f))
         }
     }
 }
@@ -171,7 +172,7 @@ private fun DistractionSection(state: AppState, today: String, weekFrom: String,
     val top = Stats.topCategories(state, weekFrom, today)
     val target = Distractions.weeklyTarget(state, today)
 
-    Section("딴짓", trailing = { InkLink(if (logging) "취소" else "기록하기", { logging = !logging }, style = Type.caption.copy(color = Ink)) }) {
+    Section("딴짓", trailing = { InkLink(if (logging) "닫기" else "기록하기", { logging = !logging }, style = Type.caption.copy(color = Ink)) }) {
         if (logging) {
             T("집중하지 않을 때 한 딴짓도 적어 두면 원인이 잘 보여요.", Type.caption, modifier = Modifier.padding(vertical = 6.dp))
             CategoryGrid { c ->
@@ -181,7 +182,7 @@ private fun DistractionSection(state: AppState, today: String, weekFrom: String,
             Gap(8.dp)
         }
         if (top.isEmpty()) {
-            T("이번 주에는 기록된 딴짓이 없어요.", Type.body.copy(color = Muted), modifier = Modifier.padding(vertical = 8.dp))
+            T("이번 주에는 적어 둔 딴짓이 없어요.", Type.body.copy(color = Muted), modifier = Modifier.padding(vertical = 8.dp))
         } else {
             val maxC = top.maxOf { it.count }
             top.forEach { c ->
@@ -226,8 +227,8 @@ private fun DistractionSection(state: AppState, today: String, weekFrom: String,
                         )
                         val meta = listOfNotNull(
                             d.note.takeIf { it.isNotBlank() },
-                            if (d.source == Source.IPHONE) "아이폰" else null,
-                            if (d.sessionId != null) "집중 중" else null,
+                            if (d.source == Source.IPHONE) "아이폰에서" else null,
+                            if (d.sessionId != null) "집중하던 중" else null,
                         )
                         if (meta.isNotEmpty()) T(meta.joinToString(" · "), Type.caption)
                     }

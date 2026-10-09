@@ -61,7 +61,7 @@ object Ntfy {
 class SyncManager(private val repo: Repository) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutex = Mutex()
-    private val _status = MutableStateFlow("아직 동기화하지 않음")
+    private val _status = MutableStateFlow("아직 가져온 기록이 없어요")
     val status: StateFlow<String> = _status
 
     fun pullAsync() {
@@ -82,10 +82,10 @@ class SyncManager(private val repo: Repository) {
                     next
                 }
             }
-            _status.value = "${Dates.hhmm(now)} 동기화 · 새 기록 ${applied}건"
+            _status.value = "${Dates.hhmm(now)}에 가져왔어요 · 새 기록 ${applied}건"
             applied
         } catch (e: Exception) {
-            _status.value = "${Dates.hhmm(now)} 동기화 실패 · ${e.message ?: e.javaClass.simpleName}"
+            _status.value = "${Dates.hhmm(now)}에 가져오지 못했어요 · ${e.message ?: e.javaClass.simpleName}"
             0
         }
     }
@@ -96,9 +96,9 @@ class SyncManager(private val repo: Repository) {
         scope.launch {
             try {
                 Ntfy.publish(s.syncServer, s.syncTopic, text)
-                if (force) _status.value = "${Dates.hhmm(System.currentTimeMillis())} 테스트 메시지 보냄"
+                if (force) _status.value = "${Dates.hhmm(System.currentTimeMillis())}에 시험 메시지를 보냈어요"
             } catch (e: Exception) {
-                _status.value = "${Dates.hhmm(System.currentTimeMillis())} 보내기 실패 · ${e.message ?: e.javaClass.simpleName}"
+                _status.value = "${Dates.hhmm(System.currentTimeMillis())}에 보내지 못했어요 · ${e.message ?: e.javaClass.simpleName}"
             }
         }
     }

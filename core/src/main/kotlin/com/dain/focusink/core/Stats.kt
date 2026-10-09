@@ -78,7 +78,7 @@ object Stats {
 
     fun summaryLine(stat: DayStat): String =
         "집중 ${duration(stat.deepMinutes)} · 딴짓 ${stat.distractions}번" +
-            (if (stat.urgesResisted > 0) " · 참음 ${stat.urgesResisted}번" else "")
+            (if (stat.urgesResisted > 0) " · 참은 딴짓 ${stat.urgesResisted}번" else "")
 }
 
 object Plans {

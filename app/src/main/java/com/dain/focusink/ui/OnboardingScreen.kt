@@ -63,7 +63,7 @@ fun OnboardingScreen(state: AppState, act: Actions, onRequestNotifications: () -
                 T("나중에 기록 탭에서 정해도 괜찮아요.", Type.caption)
             }
             2 -> {
-                T("알림을 받을\n시간을 정해 주세요", Type.display)
+                T("알림 받을 시간을\n정해 볼까요?", Type.display)
                 Gap(18.dp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     T("하루 마무리", Type.body, modifier = Modifier.width(150.dp))

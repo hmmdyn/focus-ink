@@ -34,3 +34,12 @@
 - **할 일 개수 강제 제한**: 숫자 제한을 직접 시험한 연구가 없음. 세 가지는 권하기만 함.
 - **"휴대폰이 곁에 있기만 해도 집중력이 떨어진다"는 안내**: 최근 메타분석에서 효과가 거의 없거나 작음([Hartanto 2024](https://researchonline.jcu.edu.au/91280/), [Parry 2024](https://research.vu.nl/en/publications/does-the-mere-presence-of-a-smartphone-impact-cognitive-performan/)). 체크 항목은 두되 효과를 주장하지 않음.
 - **"90분은 뇌의 주기"라는 설명**: 수면 주기에서 나온 수치로 근거가 약함. 90분은 기본값일 뿐.
+
+## 문구: 코치 말투
+
+국내 습관·자기계발 앱(루티너리, 마이루틴, 마보, 열품타, 챌린저스, 밀리의서재)과 토스·배민·카카오뱅크의 문구, 국내 UX 라이터들의 글을 살펴봤습니다. 코치 앱들은 인앱 문구가 공개된 자료로 거의 남아 있지 않아서, 스토어 설명과 분석 글을 기준으로 했습니다.
+
+- 기준 규칙: [앱인토스 UI/UX 가이드](https://developers-apps-in-toss.toss.im/design/consumer-ux-guide.md)(해요체, 능동형, 긍정형, 명사형 지양, 가벼운 경어), [토스 8원칙](https://toss.tech/article/8-writing-principles-of-toss)(강요보다 제안, 소리 내어 읽기 쉬운 말).
+- 수고를 알아봐 주는 말이 실제 반응을 바꾼 사례: 토스 대출 안내를 "갚느라 고생 많으셨어요"로 바꾼 일([롱블랙](https://longblack.co/note/985)).
+- 피한 것: 해요체 + 느낌표로 압박하는 컨펌셰이밍([요즘IT](https://yozm.wishket.com/magazine/detail/1887/)), 열품타식 경쟁 자극, 챌린저스식 벌금·손실 강조. 습관이 끊긴 사람을 다시 데려오는 데는 탓하는 말보다 돌아온 것을 알아봐 주는 말이 근거와 맞습니다(Milkman 2021, Silverman & Barasch 2023).
+- 느낌표에 대한 공식 규칙은 없습니다. e-ink 화면의 차분한 톤을 지키려고 해낸 순간에만 쓰기로 정했습니다(선택).

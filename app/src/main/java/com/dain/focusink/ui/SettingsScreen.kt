@@ -68,7 +68,7 @@ fun SettingsScreen(state: AppState, act: Actions, onClose: () -> Unit) {
             if (review != s.reviewTime || sunset != s.sunsetTime) {
                 val ok = validTime(review) && validTime(sunset)
                 Gap(10.dp)
-                InkButton(if (ok) "시간 저장하기" else "21:30 처럼 적어 주세요", {
+                InkButton(if (ok) "시간 저장하기" else "21:30처럼 적어 주세요", {
                     set { it.copy(reviewTime = review.trim(), sunsetTime = sunset.trim()) }
                 }, Modifier.fillMaxWidth(), enabled = ok, filled = ok)
             }
@@ -120,11 +120,11 @@ fun SettingsScreen(state: AppState, act: Actions, onClose: () -> Unit) {
         Section("백업") {
             InkButton("백업 파일 내보내기", { act.shareBackup(context) }, Modifier.fillMaxWidth())
             Gap(8.dp)
-            InkField(importText, { importText = it }, "복원하려면 백업 내용을 붙여 넣으세요", singleLine = false)
+            InkField(importText, { importText = it }, "백업 내용을 붙여 넣으면 복원할 수 있어요", singleLine = false)
             if (importText.isNotBlank()) {
                 Gap(8.dp)
                 ConfirmButton("복원하기 (지금 기록은 지워져요)", "한 번 더 누르면 복원해요", {
-                    importMsg = if (act.importBackup(importText)) "복원했어요." else "백업 형식이 맞지 않아요."
+                    importMsg = if (act.importBackup(importText)) "복원했어요." else "백업 내용을 읽지 못했어요. 내보낸 글 전체를 붙여 넣어 주세요."
                     importText = ""
                 }, Modifier.fillMaxWidth())
             }
