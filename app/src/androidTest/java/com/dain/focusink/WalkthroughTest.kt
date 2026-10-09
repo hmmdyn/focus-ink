@@ -1,5 +1,9 @@
 package com.dain.focusink
 
+import com.dain.focusink.core.FocusSession
+import com.dain.focusink.core.Outcome
+import com.dain.focusink.core.Preset
+
 import android.Manifest
 import android.graphics.Bitmap
 import android.os.Build
@@ -204,5 +208,24 @@ class WalkthroughTest {
         shot("19_review_done")
         tap("닫기")
         shot("20_today_end")
+
+        // 9. 판화가 찍히는 모습: 오늘 75분 집중한 기록을 넣고(테스트용) 오늘 쪽과 기록을 다시 본다
+        val app = compose.activity.application as FocusInkApp
+        compose.runOnUiThread {
+            val now = System.currentTimeMillis()
+            app.repo.update { st ->
+                st.copy(
+                    sessions = st.sessions + FocusSession(
+                        id = "demo-print", label = "논문 3장 초안", startedAt = now - 80 * 60_000L, endedAt = now - 5 * 60_000L,
+                        plannedMinutes = 90, outcome = Outcome.COMPLETED, quality = 3, preset = Preset.DEEP90.id,
+                    ),
+                )
+            }
+        }
+        compose.waitForIdle()
+        shot("21_today_print")
+        tap("기록")
+        tap("일")
+        shot("22_record_day_print")
     }
 }

@@ -209,7 +209,7 @@ fun PrintCard(date: String, minutes: Int, goal: Int) {
     val progress = Print.progress(minutes, goal)
     Column(Modifier.fillMaxWidth().border(2.dp, Ink)) {
         Box {
-            HalftonePrint(Print.seed(date), progress, Modifier.padding(6.dp), cell = 4.dp)
+            HalftonePrint(Print.seed(date), progress, Modifier.padding(6.dp), cell = 4.dp, aspect = 1.35f)
             T(if (minutes >= goal) "PRINTED" else "PASS ${(passes + if (progress * Print.PASSES > passes) 1 else 0).coerceIn(1, 4)}/4", Type.label,
                 modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Paper).border(1.5.dp, Ink).padding(horizontal = 6.dp, vertical = 2.dp))
         }
@@ -242,7 +242,7 @@ private fun QuickStart(p: Preset, modifier: Modifier, onClick: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        DotText("${p.minutes}", dot = 4.dp, gap = 1.dp, ghost = false, color = c)
+        DotText("${p.minutes}", dot = 4.dp, gap = 1.dp, ghost = false, square = true, color = c)
         Gap(6.dp)
         T(p.label, Type.small, color = c)
     }

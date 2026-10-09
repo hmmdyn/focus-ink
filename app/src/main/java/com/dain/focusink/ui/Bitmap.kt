@@ -330,6 +330,18 @@ private fun DrawScope.drawPrint(layers: Layers, progress: Float, cellPx: Float, 
             }
         }
     }
+    // 아직 찍지 않은 판은 밑그림처럼 성긴 점으로 보여 준다. 무엇이 찍힐지 미리 보여야 채우고 싶어진다
+    val dot = (cell * 0.35f).coerceAtLeast(1.5f)
+    for (k in 0 until 4) {
+        if ((progress * 4 - k) >= 1f) continue
+        val m = layers.maps[k]
+        for (j in 0 until rows step 2) for (i in (j / 2) % 2 until cols step 2) {
+            val mx = ((i - ox) / sc).toInt()
+            val my = ((j - oy) / sc).toInt()
+            if (mx < 0 || my < 0 || mx >= MAP_W || my >= MAP_H) continue
+            if (m[my * MAP_W + mx] > 0.3f) drawRect(Ink, Offset(i * cell + (cell - dot) / 2, j * cell + (cell - dot) / 2), Size(dot, dot))
+        }
+    }
     for (k in 0 until 4) {
         val f = (progress * 4 - k).coerceIn(0f, 1f)
         if (f <= 0f) break

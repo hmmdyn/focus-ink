@@ -75,9 +75,9 @@ private fun DayRecord(state: AppState, today: String) {
         Column {
             T("집중", Type.label)
             val m = stat.deepMinutes
-            DotText(if (m >= 60) "${m / 60}H${(m % 60).toString().padStart(2, '0')}" else "${m}M", dot = 5.dp, gap = 1.5.dp)
+            DotText(if (m >= 60) "${m / 60}H${(m % 60).toString().padStart(2, '0')}" else "${m}M", dot = 5.dp, gap = 1.dp, square = true)
             Gap(6.dp)
-            T("${stat.blocks}번 끝까지 · 점수 ${Score.day(state, date)}", Type.caption)
+            T("끝까지 한 집중 ${stat.blocks}번 · 점수 ${Score.day(state, date)}", Type.caption)
         }
     }
     val sessions = state.sessions.filter { Dates.dateOf(it.startedAt) == date }.sortedBy { it.startedAt }
@@ -203,7 +203,7 @@ private fun MonthRecord(state: AppState, today: String) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         InkButton("‹", { month = first.minusMonths(1).toString().take(7) }, Modifier.width(56.dp), height = 44.dp)
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            DotText(listOf("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")[first.monthValue - 1] + " " + first.year, dot = 4.dp, gap = 1.dp)
+            DotText(listOf("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")[first.monthValue - 1] + " " + first.year, dot = 4.dp, gap = 1.dp, square = true, ghost = false)
         }
         InkButton("›", { if (month < today.take(7)) month = first.plusMonths(1).toString().take(7) }, Modifier.width(56.dp), height = 44.dp, enabled = month < today.take(7))
     }
